@@ -7,9 +7,9 @@ import (
 type inputLabels map[uint64]string
 
 type inputEventBuilder struct {
-	inputEvent         *InputEvent
-	inputLabels        inputLabels
-	inputID            uint64
+	inputEvent  *InputEvent
+	inputLabels inputLabels
+	inputID     uint64
 }
 
 func NewInputEventBuilder() *inputEventBuilder {
@@ -18,6 +18,25 @@ func NewInputEventBuilder() *inputEventBuilder {
 	return ieBuilder
 }
 
+func (ib *inputEventBuilder) HandleMessage(message Message, messageID uint64, timestamp uint64) *InputEvent {
+	switch msg := message.(type) {
+	//case *SessionDisconnect:
+	//	i := ib.Build()
+	//	ib.ClearLabels()
+	//	return i
+	case *SetPageLocation:
+		if msg.NavigationStart != 0 {
+			i := ib.Build()
+			ib.ClearLabels()
+			return i
+		}
+	case *SetInputTarget:
+		return ib.HandleSetInputTarget(msg)
+	case *SetInputValue:
+		return ib.HandleSetInputValue(msg, messageID, timestamp)
+	}
+	return nil
+}
 
 func (b *inputEventBuilder) ClearLabels() {
 	b.inputLabels = make(inputLabels)
@@ -57,7 +76,7 @@ func (b *inputEventBuilder) HasInstance() bool {
 	return b.inputEvent != nil
 }
 
-func (b * inputEventBuilder) GetTimestamp() uint64 {
+func (b *inputEventBuilder) GetTimestamp() uint64 {
 	if b.inputEvent == nil {
 		return 0
 	}
@@ -69,10 +88,10 @@ func (b *inputEventBuilder) Build() *InputEvent {
 		return nil
 	}
 	inputEvent := b.inputEvent
-	label, exists := b.inputLabels[b.inputID]
-	if !exists {
-		return nil
-	}
+	label := b.inputLabels[b.inputID]
+	// if !ok {
+	// 	return nil
+	// }
 	inputEvent.Label = label
 
 	b.inputEvent = nil

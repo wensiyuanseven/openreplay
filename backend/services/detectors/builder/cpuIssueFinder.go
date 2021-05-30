@@ -3,23 +3,34 @@ package builder
 import (
 	"encoding/json"
 
-	"openreplay/backend/pkg/messages/performance"
 	. "openreplay/backend/pkg/messages"
+	"openreplay/backend/pkg/messages/performance"
 )
 
-const CPU_THRESHOLD = 70  // % out of 100 
+const CPU_THRESHOLD = 70 // % out of 100
 const CPU_MIN_DURATION_TRIGGER = 6 * 1000
 
-
-type cpuIssueFinder struct {
+type cpuIssueDetector struct {
 	startTimestamp uint64
 	startMessageID uint64
-	lastTimestamp     uint64
-	maxRate uint64
-	contextString string
+	lastTimestamp  uint64
+	maxRate        uint64
+	contextString  string
 }
 
-func (f *cpuIssueFinder) Build() *IssueEvent {
+func (f *cpuIssueDetector) HandleMessage(message Message, messageID uint64, timestamp uint64) *IssueEvent {
+	switch msg := message.(type) {
+	case *SetPageLocation:
+		f.HandleSetPageLocation(msg)
+	case *PerformanceTrack:
+		return f.HandlePerformanceTrack(msg, messageID, timestamp);
+	case *SessionEnd:
+		return f.Build()
+	}
+	return nil
+}
+
+func (f *cpuIssueDetector) Build() *IssueEvent {
 	if f.startTimestamp == 0 {
 		return nil
 	}
@@ -35,26 +46,24 @@ func (f *cpuIssueFinder) Build() *IssueEvent {
 		return nil
 	}
 
-	payload, _ := json.Marshal(struct{
+	payload, _ := json.Marshal(struct {
 		Duration uint64
-		Rate uint64
-	}{duration,maxRate})
+		Rate     uint64
+	}{duration, maxRate})
 	return &IssueEvent{
-		Type: "cpu",
-		Timestamp: timestamp,
-		MessageID: messageID,
+		Type:          "cpu",
+		Timestamp:     timestamp,
+		MessageID:     messageID,
 		ContextString: f.contextString,
-		Payload: string(payload),
+		Payload:       string(payload),
 	}
 }
 
-func (f *cpuIssueFinder) HandleSetPageLocation(msg *SetPageLocation) {
+func (f *cpuIssueDetector) HandleSetPageLocation(msg *SetPageLocation) {
 	f.contextString = msg.URL
 }
 
-
-
-func (f *cpuIssueFinder) HandlePerformanceTrack(msg *PerformanceTrack, messageID uint64, timestamp uint64) *IssueEvent {
+func (f *cpuIssueDetector) HandlePerformanceTrack(msg *PerformanceTrack, messageID uint64, timestamp uint64) *IssueEvent {
 	dt := performance.TimeDiff(timestamp, f.lastTimestamp)
 	if dt == 0 {
 		return nil // TODO: handle error
@@ -82,5 +91,4 @@ func (f *cpuIssueFinder) HandlePerformanceTrack(msg *PerformanceTrack, messageID
 
 	return nil
 }
-
 

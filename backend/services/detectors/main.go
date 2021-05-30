@@ -13,14 +13,13 @@ import (
 	"openreplay/backend/pkg/messages"
 	"openreplay/backend/pkg/queue"
 	"openreplay/backend/pkg/queue/types"
-	"openreplay/backend/services/ender/builder"
+	"openreplay/backend/services/detectors/builder"
 )
-
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.LUTC | log.Llongfile)
 
-	GROUP_EVENTS := env.String("GROUP_ENDER") // env.String("GROUP_EVENTS")
+	GROUP_EVENTS := env.String("GROUP_DETECTOR") // env.String("GROUP_EVENTS")
 	TOPIC_RAW := env.String("TOPIC_RAW")
 	TOPIC_TRIGGER := env.String("TOPIC_TRIGGER")
 
@@ -29,22 +28,22 @@ func main() {
 
 	producer := queue.NewProducer()
 	consumer := queue.NewMessageConsumer(
-		GROUP_EVENTS, 
-		[]string{ TOPIC_RAW }, 
+		GROUP_EVENTS,
+		[]string{TOPIC_RAW},
 		func(sessionID uint64, msg messages.Message, meta *types.Meta) {
 			lastTs = meta.Timestamp
-			builderMap.HandleMessage(sessionID, msg, meta.ID)
+			builderMap.HandleMessage(sessionID, msg, msg.Meta().Index)
 			builderMap.IterateSessionReadyMessages(sessionID, lastTs, func(readyMsg messages.Message) {
 				producer.Produce(TOPIC_TRIGGER, sessionID, messages.Encode(readyMsg))
 			})
 		},
 	)
 	consumer.DisableAutoCommit()
-	
+
 	tick := time.Tick(intervals.EVENTS_COMMIT_INTERVAL * time.Millisecond)
 
 	sigchan := make(chan os.Signal, 1)
-  signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 
 	for {
 		select {
@@ -54,7 +53,7 @@ func main() {
 			consumer.CommitBack(intervals.EVENTS_BACK_COMMIT_GAP)
 			consumer.Close()
 			os.Exit(0)
-		case <- tick:
+		case <-tick:
 			builderMap.IterateReadyMessages(time.Now().UnixNano()/1e6, func(sessionID uint64, readyMsg messages.Message) {
 				if _, ok := readyMsg.(*messages.SessionEnd); ok {
 					log.Printf("ENDSOME %v", sessionID)
@@ -71,4 +70,3 @@ func main() {
 		}
 	}
 }
-

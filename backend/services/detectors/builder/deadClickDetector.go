@@ -4,24 +4,22 @@ import (
 	. "openreplay/backend/pkg/messages"
 )
 
-
 const CLICK_RELATION_TIME = 1400
 
 type deadClickDetector struct {
-	lastMouseClick  *MouseClick
-	lastTimestamp uint64
-	lastMessageID   uint64
+	lastMouseClick *MouseClick
+	lastTimestamp  uint64
+	lastMessageID  uint64
 }
-
 
 func (d *deadClickDetector) HandleReaction(timestamp uint64) *IssueEvent {
 	var i *IssueEvent
-	if d.lastMouseClick != nil && d.lastTimestamp + CLICK_RELATION_TIME < timestamp {
+	if d.lastMouseClick != nil && d.lastTimestamp+CLICK_RELATION_TIME < timestamp {
 		i = &IssueEvent{
-			Type: "dead_click",
+			Type:          "dead_click",
 			ContextString: d.lastMouseClick.Label,
-			Timestamp: d.lastTimestamp,
-			MessageID: d.lastMessageID,
+			Timestamp:     d.lastTimestamp,
+			MessageID:     d.lastMessageID,
 		}
 	}
 	d.lastMouseClick = nil
@@ -38,8 +36,8 @@ func (d *deadClickDetector) HandleMessage(msg Message, messageID uint64, timesta
 		d.lastMouseClick = m
 		d.lastTimestamp = timestamp
 		d.lastMessageID = messageID
-	case *SetNodeAttribute, 
-		*RemoveNodeAttribute, 
+	case *SetNodeAttribute,
+		*RemoveNodeAttribute,
 		*CreateElementNode,
 		*CreateTextNode,
 		*MoveNode,
@@ -51,5 +49,3 @@ func (d *deadClickDetector) HandleMessage(msg Message, messageID uint64, timesta
 	}
 	return i
 }
-
-
