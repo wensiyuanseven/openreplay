@@ -116,6 +116,7 @@ export default class ListWalker<T extends Timed> {
 			this._p--;
 			changed = true;
 		}
+
 		return changed ? this._list[ this._p - 1 ] : null;
 	}
 

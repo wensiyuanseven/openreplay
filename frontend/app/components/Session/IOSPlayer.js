@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { connect } from 'react-redux';
 import ImagePlayer from 'Player/ios/ImagePlayer';
 import { CRASHES, NETWORK, LOGS, PERFORMANCE, CUSTOM } from 'Player/ios/state';
+import { fetchScreenUrls } from 'Duck/sessions';
 import Network from './IOSPlayer/Network';
 import Logs from './IOSPlayer/Logs';
 import IMGScreen from './IOSPlayer/IMGScreen';
@@ -44,7 +46,7 @@ const TOOLBAR = [
 ];
 
 
-export default function IOSPlayer({ session }) {
+function IOSPlayer({ session }) {
 	const [player] = useState(() => new ImagePlayer(session));
 	useEffect(() => {
 		player.attach({ wrapperId: "IOSWrapper", screenId: "IOSscreen" });
@@ -64,3 +66,7 @@ export default function IOSPlayer({ session }) {
 		</Layout>
 	);
 }
+
+export default connect(state => ({
+
+}, { fetchScreenUrls }))(IOSPlayer)

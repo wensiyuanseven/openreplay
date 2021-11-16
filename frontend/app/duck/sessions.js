@@ -15,6 +15,7 @@ const FETCH_LIST = new RequestTypes('sessions/FETCH_LIST');
 const FETCH = new RequestTypes('sessions/FETCH');
 const FETCH_FAVORITE_LIST = new RequestTypes('sessions/FETCH_FAVORITE_LIST');
 const FETCH_LIVE_LIST = new RequestTypes('sessions/FETCH_LIVE_LIST');
+const FETCH_SCREEN_URLS = new RequestTypes('sessions/FETCH_SCREEN_URLS');
 const TOGGLE_FAVORITE = new RequestTypes('sessions/TOGGLE_FAVORITE');
 const FETCH_ERROR_STACK = new RequestTypes('sessions/FETCH_ERROR_STACK');
 const FETCH_INSIGHTS = new RequestTypes('sessions/FETCH_INSIGHTS');
@@ -312,6 +313,13 @@ export function fetchLiveList() {
   return {
     types: FETCH_LIVE_LIST.toArray(),
     call: client => client.get('/assist/sessions'),
+  };
+}
+
+export function fetchScreenUrls(urls) {
+  return {
+    types: FETCH_SCREEN_URLS.toArray(),
+    call: client => client.post('/mobile/urls', { params: urls }),
   };
 }
 

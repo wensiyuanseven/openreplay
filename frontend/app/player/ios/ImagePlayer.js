@@ -1,4 +1,4 @@
-import { io } from 'socket.io-client';
+// import { io } from 'socket.io-client';
 import { makeAutoObservable, autorun } from 'mobx';
 import logger from 'App/logger';
 import { 
@@ -8,7 +8,7 @@ import {
   PLAYING,
   PAUSED,
   COMPLETED,
-  SOCKET_ERROR,
+  // SOCKET_ERROR,
 
   CRASHES,
   LOGS,
@@ -16,6 +16,7 @@ import {
   PERFORMANCE,
   CUSTOM,
   EVENTS, // last evemt +clicks
+  SCREEN_CHANGE,
 } from "./state";
 import {
   createListState,
@@ -40,8 +41,10 @@ export default class ImagePlayer {
     [EVENTS]: createListState(),
     [CUSTOM]: createListState(),
     [PERFORMANCE]: new PerformanceList(),
+    [SCREEN_CHANGE]: createListState(),
   }
   _clicks = createListState()
+  _swipes = createListState()
   _screens = createScreenListState()
   
   constructor(session) {
@@ -58,6 +61,7 @@ export default class ImagePlayer {
     session.crashes.forEach(c => this.lists[CRASHES].append(c));
     session.events.forEach(e => this.lists[EVENTS].append(e));
     session.stackEvents.forEach(e => this.lists[CUSTOM].append(e));
+    
     window.fetch(session.mobsUrl)
     .then(r => r.arrayBuffer())
     .then(b => {
@@ -68,13 +72,18 @@ export default class ImagePlayer {
             this.lists[LOGS].append(m);
           } else if (m.tp === "ios_network_call") {
             this.lists[NETWORK].append(m);
-          // } else if (m.tp === "ios_custom_event") {
-          //   this.lists[CUSTOM].append(m);
           } else if (m.tp === "ios_click_event") {
-            m.time -= 600; //for graphic initiation
+            m.time -= 400; //for graphic initiation
             this._clicks.append(m);
+          }  else if (m.tp === "ios_swipe_event") {
+            m.time -= 400; //for graphic initiation
+            this._swipes.append(m);
           } else if (m.tp === "ios_performance_event") {
             this.lists[PERFORMANCE].append(m);
+          } else if (m.tp === "ios_screen_changes") {
+            this.lists[SCREEN_CHANGE].append(m);
+            // const { time, width, height } = m;
+            // this._screens.insertScreen(time, width, height)
           }
         } catch (e) {
           logger.error(e);
@@ -83,57 +92,58 @@ export default class ImagePlayer {
       Object.values(this.lists).forEach(list => list.moveToLast(0)); // In case of negative values
     })
 
-    if (session.socket == null || typeof session.socket.jwt !== "string" || typeof session.socket.url !== "string") {
-      logger.error("No socket info found fpr session", session);
-      return
-    }
+    // if (session.socket == null || typeof session.socket.jwt !== "string" || typeof session.socket.url !== "string") {
+    //   logger.error("No socket info found fpr session", session);
+    //   return
+    // }
+    // console.log('session', session)
 
     const options = {
-      extraHeaders: {Authorization: `Bearer ${session.socket.jwt}`},
+      // extraHeaders: {Authorization: `Bearer ${session.socket.jwt}`},
       reconnectionAttempts: 5,
       //transports: ['websocket'],
     }
 
-    const socket = this._socket = io(session.socket.url, options);
-    socket.on("connect", () => {
-        logger.log("Socket Connected");
-    });
+    // const socket = this._socket = io(session.socket.url, options);
+    // socket.on("connect", () => {
+    //     logger.log("Socket Connected");
+    // });
 
-    socket.on('disconnect', (reason) => {
-      if (reason === 'io client disconnect') {
-        return;
-      }
-      logger.error("Disconnected. Reason: ", reason)
-      // if (reason === 'io server disconnect') {
-      //   socket.connect();
-      // }
-    });
-    socket.on('connect_error', (e) => {
-      this.state.setState(SOCKET_ERROR);
-      logger.error(e)
-    });
+    // socket.on('disconnect', (reason) => {
+    //   if (reason === 'io client disconnect') {
+    //     return;
+    //   }
+    //   logger.error("Disconnected. Reason: ", reason)
+    //   // if (reason === 'io server disconnect') {
+    //   //   socket.connect();
+    //   // }
+    // });
+    // socket.on('connect_error', (e) => {
+    //   this.state.setState(SOCKET_ERROR);
+    //   logger.error(e)
+    // });
 
-    socket.on('screen', (time, width, height, binary) => {
-      //logger.log("New Screen!", time, width, height, binary);
-      this._screens.insertScreen(time, width, height, binary);
-    });
-    socket.on('buffered', (playTime) => {
-      if (playTime === this.state.time) {
-        this.state.setBufferingState(false);
-      }    
-      logger.log("Play ack!", playTime);
-    });
+    // socket.on('screen', (time, width, height, binary) => {
+    //   //logger.log("New Screen!", time, width, height, binary);
+    //   this._screens.insertScreen(time, width, height, binary);
+    // });
+    // socket.on('buffered', (playTime) => {
+    //   if (playTime === this.state.time) {
+    //     this.state.setBufferingState(false);
+    //   }    
+    //   logger.log("Play ack!", playTime);
+    // });
 
-    let startPingInterval;
-    socket.on('start', () => {
-      logger.log("Started!");
-      clearInterval(startPingInterval)
-      this.state.setBufferingState(true);
-      socket.emit("speed", this.state.speed);
-      this.play();
-    });
-    startPingInterval = setInterval(() => socket.emit("start"), 1000);
-    socket.emit("start");
+    // let startPingInterval;
+    // socket.on('start', () => {
+    //   logger.log("Started!");
+    //   clearInterval(startPingInterval)
+    //   this.state.setBufferingState(true);
+    //   socket.emit("speed", this.state.speed);
+    //   this.play();
+    // });
+    // startPingInterval = setInterval(() => socket.emit("start"), 1000);
+    // socket.emit("start");
 
     window.addEventListener("resize", this.scale);
     autorun(this.scale);
@@ -191,14 +201,22 @@ export default class ImagePlayer {
     ts = Math.max(Math.min(ts, this.state.endTime), 0);
     this.state.setTime(ts);
     Object.values(this.lists).forEach(list => list.moveToLast(ts));
-    const screen = this._screens.moveToLast(ts);
-    if (screen != null) {
-      const { dataURL, width, height } = screen;
-      this.state.setSize(width, height);
-      //imagePromise.then(() => this._updateFrame({ image, width, height }));
-      //this._screen.style.backgroundImage = `url(${screen.dataURL})`;
-      screen.loadImage.then(() => this._screen.style.backgroundImage = `url(${screen.dataURL})`);
+    
+    // const screen = this._screens.moveToLast(ts);
+    // if (screen != null) {
+    //   const { dataURL, width, height } = screen;
+    //   this.state.setSize(width, height);
+    //   //imagePromise.then(() => this._updateFrame({ image, width, height }));
+    //   //this._screen.style.backgroundImage = `url(${screen.dataURL})`;
+    //   screen.loadImage.then(() => this._screen.style.backgroundImage = `url(${screen.dataURL})`);
+    // }
+    const lastScreen = this.lists[SCREEN_CHANGE].moveToLast(ts)   
+    
+    if (lastScreen != null) {
+      const { timestamp, width, height } = lastScreen;
+      console.log('lastScreen', lastScreen)
     }
+    
     const lastClick = this._clicks.moveToLast(ts);
     if (lastClick != null && lastClick.time > ts - 600) {
       this._animateClick(lastClick);
@@ -228,6 +246,14 @@ export default class ImagePlayer {
     this._screen = screen;
     this._wrapper = wrapper;
     this.scale();
+  }
+
+  currentUrls(timenow) { // TODO
+    const max = this.lists[SCREEN_CHANGE].maxTime
+    const min = this.lists[SCREEN_CHANGE].minTime
+    const divides = Math.ceil(max / 10000)
+
+    this.lists[SCREEN_CHANGE].map
   }
 
 
@@ -296,7 +322,6 @@ export default class ImagePlayer {
       if (completed) {
         this._setComplete();
       } else {
-
         // if (live && time > endTime) {
         //   update({
         //     endTime: time,
@@ -307,6 +332,8 @@ export default class ImagePlayer {
       }
     };
     this._animationFrameRequestId = requestAnimationFrame(nextFrame);
+
+    console.log('screens', this.lists[SCREEN_CHANGE])
   }
 
 

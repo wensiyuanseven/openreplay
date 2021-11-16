@@ -9,7 +9,8 @@ export const
   LOGS = 3,
   EVENTS = 4,
   CUSTOM = 5,
-  PERFORMANCE = 6;
+  PERFORMANCE = 6,
+  SCREEN_CHANGE = 7;
 
 export function createToolPanelState() {
 	return makeAutoObservable({

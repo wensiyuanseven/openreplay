@@ -1,6 +1,7 @@
 import { observer } from 'mobx-react-lite';
 import Screen from './ScreenWithLoaders';
 import HTMLScreen from './HTMLScreen';
+import { SCREEN_CHANGE, time } from 'Player/ios/state';
 
 const MODEL_IMG_MAP = {
 	"iPhone 12" : {
@@ -98,6 +99,12 @@ function IMGScreen(props) {
 	const { wrapperId, player, screenId } = props;
 
 	const curScreenWidth = player.state.orientationLandscape ? player.state.height : player.state.width;
+
+  // console.log('player scrrens', player.lists[SCREEN_CHANGE])
+  // console.log('player scrrens', player.lists[SCREEN_CHANGE].current)
+  // console.log('player scrrens', player.lists[SCREEN_CHANGE].timeNow)
+  // console.log('-----', time)
+
 	return (
 		<div id={wrapperId} className="relative">
 			<Screen className="absolute inset-0" screenId={ screenId } player={player} />
