@@ -1,8 +1,11 @@
+# 7.0.0
+
+- **[breaking]** added gzip compression for large messages
+
 # 6.0.1
 
 - fix webworker writer re-init request
 - remove useless logs
-- added gzip compression to large messages
 - tune mouse thrashing detection
 - fix iframe handling
 

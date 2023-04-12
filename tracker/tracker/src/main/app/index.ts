@@ -7,7 +7,7 @@ import Sanitizer from './sanitizer.js'
 import Ticker from './ticker.js'
 import Logger, { LogLevel } from './logger.js'
 import Session from './session.js'
-import { gzip } from 'fflate'
+// import { gzip } from 'fflate'
 import { deviceMemory, jsHeapSizeLimit } from '../modules/performance.js'
 
 import type { Options as ObserverOptions } from './observer/top_observer.js'
@@ -21,9 +21,6 @@ import type {
   ToWorkerData,
   FromWorkerData,
 } from '../../common/interaction.js'
-
-// @ts-ignore
-window.gzip = gzip
 
 interface TypedWorker extends Omit<Worker, 'postMessage'> {
   postMessage(data: ToWorkerData): void
@@ -180,18 +177,6 @@ export default class App {
         } else if (data.type === 'failure') {
           this.stop(false)
           this._debug('worker_failed', data.reason)
-        } else if (data.type === 'compress') {
-          const batch = data.batch
-          const batchSize = batch.byteLength
-          if (batchSize > this.compressionThreshold) {
-            gzip(data.batch, { mtime: 0 }, (err, result) => {
-              if (err) console.error(err)
-              // @ts-ignore
-              this.worker?.postMessage({ type: 'compressed', batch: result })
-            })
-          } else {
-            this.worker?.postMessage({ type: 'uncompressed', batch: batch })
-          }
         }
       }
       const alertWorker = () => {

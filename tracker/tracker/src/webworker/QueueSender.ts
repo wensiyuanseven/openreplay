@@ -13,8 +13,7 @@ export default class QueueSender {
     private readonly onUnauthorised: () => any,
     private readonly onFailure: (reason: string) => any,
     private readonly MAX_ATTEMPTS_COUNT = 10,
-    private readonly ATTEMPT_TIMEOUT = 1000,
-    private readonly onCompress: (batch: Uint8Array) => any,
+    private readonly ATTEMPT_TIMEOUT = 1000, // private readonly onCompress: (batch: Uint8Array) => any,
   ) {
     this.ingestURL = ingestBaseURL + INGEST_PATH
   }
@@ -31,16 +30,16 @@ export default class QueueSender {
     if (this.busy || !this.token) {
       this.queue.push(batch)
     } else {
-      this.busy = true
-      this.onCompress(batch)
+      // this.busy = true
+      this.sendBatch(batch)
     }
   }
 
   private sendNext() {
     const nextBatch = this.queue.shift()
     if (nextBatch) {
-      this.busy = true
-      this.onCompress(nextBatch)
+      // this.busy = true
+      this.sendBatch(nextBatch)
     } else {
       this.busy = false
     }
@@ -64,9 +63,9 @@ export default class QueueSender {
       Authorization: `Bearer ${this.token as string}`,
     } as Record<string, string>
 
-    if (isCompressed) {
-      headers['Content-Encoding'] = 'gzip'
-    }
+    // if (isCompressed) {
+    //   headers['Content-Encoding'] = 'gzip'
+    // }
 
     fetch(this.ingestURL, {
       body: batch,
@@ -94,14 +93,14 @@ export default class QueueSender {
         this.retry(batch, isCompressed)
       })
   }
-
-  sendCompressed(batch: Uint8Array) {
-    this.sendBatch(batch, true)
-  }
-
-  sendUncompressed(batch: Uint8Array) {
-    this.sendBatch(batch, false)
-  }
+  //
+  // sendCompressed(batch: Uint8Array) {
+  //   this.sendBatch(batch, true)
+  // }
+  //
+  // sendUncompressed(batch: Uint8Array) {
+  //   this.sendBatch(batch, false)
+  // }
 
   clean() {
     this.queue.length = 0

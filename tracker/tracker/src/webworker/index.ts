@@ -101,22 +101,22 @@ self.onmessage = ({ data }: any): any => {
     return
   }
 
-  if (data.type === 'compressed') {
-    if (!sender) {
-      console.debug('WebWorker: sender not initialised. Received auth.')
-      initiateRestart()
-      return
-    }
-    sender.sendCompressed(data.batch)
-  }
-  if (data.type === 'uncompressed') {
-    if (!sender) {
-      console.debug('WebWorker: sender not initialised. Received auth.')
-      initiateRestart()
-      return
-    }
-    sender.sendUncompressed(data.batch)
-  }
+  // if (data.type === 'compressed') {
+  //   if (!sender) {
+  //     console.debug('WebWorker: sender not initialised. Received auth.')
+  //     initiateRestart()
+  //     return
+  //   }
+  //   sender.sendCompressed(data.batch)
+  // }
+  // if (data.type === 'uncompressed') {
+  //   if (!sender) {
+  //     console.debug('WebWorker: sender not initialised. Received auth.')
+  //     initiateRestart()
+  //     return
+  //   }
+  //   sender.sendUncompressed(data.batch)
+  // }
 
   if (data.type === 'start') {
     workerStatus = WorkerStatus.Starting
@@ -132,9 +132,9 @@ self.onmessage = ({ data }: any): any => {
       },
       data.connAttemptCount,
       data.connAttemptGap,
-      (batch) => {
-        postMessage({ type: 'compress', batch }, [batch.buffer])
-      },
+      // (batch) => {
+      //   postMessage({ type: 'compress', batch }, [batch.buffer])
+      // },
     )
     writer = new BatchWriter(
       data.pageNo,
