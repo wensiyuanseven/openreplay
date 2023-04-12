@@ -242,7 +242,9 @@ export default function (app: App, opts: Partial<Options> = {}, customEnv?: Reco
   }
 
   if (customEnv) {
-    customEnv.fetch = trackFetch
+    if ('fetch' in customEnv) {
+      customEnv.fetch = trackFetch
+    }
   } else {
     window.fetch = trackFetch
   }
@@ -320,7 +322,9 @@ export default function (app: App, opts: Partial<Options> = {}, customEnv?: Reco
     return nativeOpen.apply(this as XMLHttpRequest, arguments)
   }
   if (customEnv) {
-    customEnv.XMLHttpRequest.prototype.open = trackXMLHttpReqOpen.bind(customEnv)
+    if ('XMLHttpRequest' in customEnv) {
+      customEnv.XMLHttpRequest.prototype.open = trackXMLHttpReqOpen.bind(customEnv)
+    }
   } else {
     XMLHttpRequest.prototype.open = trackXMLHttpReqOpen
   }
@@ -336,7 +340,9 @@ export default function (app: App, opts: Partial<Options> = {}, customEnv?: Reco
   }
 
   if (customEnv) {
-    customEnv.XMLHttpRequest.prototype.send = trackXHRSend.bind(customEnv)
+    if ('XMLHttpRequest' in customEnv) {
+      customEnv.XMLHttpRequest.prototype.send = trackXHRSend.bind(customEnv)
+    }
   } else {
     XMLHttpRequest.prototype.send = trackXHRSend
   }
@@ -354,7 +360,9 @@ export default function (app: App, opts: Partial<Options> = {}, customEnv?: Reco
   }
 
   if (customEnv) {
-    customEnv.XMLHttpRequest.prototype.setRequestHeader = trackSetReqHeader.bind(customEnv)
+    if ('XMLHttpRequest' in customEnv) {
+      customEnv.XMLHttpRequest.prototype.setRequestHeader = trackSetReqHeader.bind(customEnv)
+    }
   } else {
     XMLHttpRequest.prototype.setRequestHeader = trackSetReqHeader
   }
