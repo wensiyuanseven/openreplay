@@ -8,6 +8,7 @@
 - remove useless logs
 - tune mouse thrashing detection
 - fix iframe handling
+- improve node counting for dom drop
 
 # 6.0.0
 

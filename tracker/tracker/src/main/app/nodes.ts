@@ -3,6 +3,7 @@ type ElementListener = [string, EventListener, boolean]
 
 export default class Nodes {
   private nodes: Array<Node | void> = []
+  private totalNodeAmount = 0
   private readonly nodeCallbacks: Array<NodeCallback> = []
   private readonly elementListeners: Map<number, Array<ElementListener>> = new Map()
 
@@ -30,6 +31,7 @@ export default class Nodes {
     let id: number = (node as any)[this.node_id]
     const isNew = id === undefined
     if (isNew) {
+      this.totalNodeAmount++
       id = this.nodes.length
       this.nodes[id] = node
       ;(node as any)[this.node_id] = id
@@ -48,6 +50,7 @@ export default class Nodes {
           node.removeEventListener(listener[0], listener[1], listener[2]),
         )
       }
+      this.totalNodeAmount--
     }
     return id
   }
@@ -74,7 +77,7 @@ export default class Nodes {
   }
 
   getNodeCount() {
-    return this.nodes.filter(Boolean).length
+    return this.totalNodeAmount
   }
 
   clear(): void {
