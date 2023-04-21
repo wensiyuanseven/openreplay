@@ -5,13 +5,13 @@ import { MouseMove, MouseClick } from '../app/messages.gen.js'
 import { getInputLabel } from './input.js'
 import { finder } from '@medv/finder'
 
-function _getSelector(target: Element, document: Document): string {
+function _getSelector(target: Element, document: Document, options?: MouseHandlerOptions): string {
   const selector = finder(target, {
     root: document.body,
     seedMinLength: 3,
-    optimizedMinLength: 2,
-    threshold: 1000,
-    maxNumberOfTries: 10_000,
+    optimizedMinLength: options?.minSelectorDepth || 2,
+    threshold: options?.nthThreshold || 1000,
+    maxNumberOfTries: options?.maxOptimiseTries || 10_000,
   })
 
   return selector
@@ -30,7 +30,7 @@ function isClickable(element: Element): boolean {
     element.getAttribute('role') === 'button'
   )
   //|| element.className.includes("btn")
-  // MBTODO: intersept addEventListener
+  // MBTODO: intercept addEventListener
 }
 
 //TODO: fix (typescript is not sure about target variable after assignation of svg)
@@ -73,7 +73,31 @@ function _getTarget(target: Element, document: Document): Element | null {
   return target === document.documentElement ? null : target
 }
 
-export default function (app: App): void {
+export interface MouseHandlerOptions {
+  disableClickmaps?: boolean
+  /** minimum length of an optimised selector.
+   *
+   * body > div > div > p => body > p for example
+   *
+   * default 2
+   * */
+  minSelectorDepth?: number
+  /** how many selectors to try before falling back to nth-child selectors
+   * performance expensive operation
+   *
+   * default 1000
+   * */
+  nthThreshold?: number
+  /**
+   * how many tries to optimise and shorten the selector
+   *
+   * default 10_000
+   * */
+  maxOptimiseTries?: number
+}
+
+export default function (app: App, options?: MouseHandlerOptions): void {
+  const { disableClickmaps = false } = options || {}
   function getTargetLabel(target: Element): string {
     const dl = getLabelAttribute(target)
     if (dl !== null) {
@@ -116,8 +140,8 @@ export default function (app: App): void {
   }
 
   const patchDocument = (document: Document, topframe = false) => {
-    function getSelector(id: number, target: Element): string {
-      return (selectorMap[id] = selectorMap[id] || _getSelector(target, document))
+    function getSelector(id: number, target: Element, options?: MouseHandlerOptions): string {
+      return (selectorMap[id] = selectorMap[id] || _getSelector(target, document, options))
     }
 
     const attachListener = topframe
@@ -155,7 +179,7 @@ export default function (app: App): void {
             id,
             mouseTarget === target ? Math.round(performance.now() - mouseTargetTime) : 0,
             getTargetLabel(target),
-            isClickable(target) ? getSelector(id, target) : '',
+            isClickable(target) && !disableClickmaps ? getSelector(id, target, options) : '',
           ),
           true,
         )
