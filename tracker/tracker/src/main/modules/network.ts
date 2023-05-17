@@ -1,6 +1,8 @@
 import type App from '../app/index.js'
 import { NetworkRequest } from '../app/messages.gen.js'
 import { getTimeOrigin } from '../utils.js'
+import axiosSpy from './axiosSpy.js'
+import type { AxiosInstance } from './axiosSpy.js'
 
 type WindowFetch = typeof window.fetch
 type XHRRequestBody = Parameters<XMLHttpRequest['send']>[0]
@@ -39,12 +41,13 @@ interface RequestData {
   body: XHRRequestBody | FetchRequestBody
   headers: Record<string, string>
 }
+
 interface ResponseData {
   body: any
   headers: Record<string, string>
 }
 
-interface RequestResponseData {
+export interface RequestResponseData {
   readonly status: number
   readonly method: string
   url: string
@@ -78,6 +81,7 @@ export interface Options {
   failuresOnly: boolean
   ignoreHeaders: Array<string> | boolean
   capturePayload: boolean
+  axiosInstances?: Array<AxiosInstance>
   sanitizer?: Sanitizer
 }
 
@@ -88,6 +92,7 @@ export default function (app: App, opts: Partial<Options> = {}) {
       ignoreHeaders: ['Cookie', 'Set-Cookie', 'Authorization'],
       capturePayload: false,
       sessionTokenHeader: false,
+      axiosInstances: undefined,
     },
     opts,
   )
@@ -99,6 +104,7 @@ export default function (app: App, opts: Partial<Options> = {}) {
 
   const stHeader =
     options.sessionTokenHeader === true ? 'X-OpenReplay-SessionToken' : options.sessionTokenHeader
+
   function setSessionTokenHeader(setRequestHeader: (name: string, value: string) => void) {
     if (stHeader) {
       const sessionToken = app.getSessionToken()
@@ -228,86 +234,97 @@ export default function (app: App, opts: Partial<Options> = {}) {
   }
   /* ====== <> ====== */
 
-  /* ====== XHR ====== */
-  const nativeOpen = XMLHttpRequest.prototype.open
-  XMLHttpRequest.prototype.open = function (initMethod, url) {
-    const xhr = this
-    setSessionTokenHeader((name, value) => xhr.setRequestHeader(name, value))
-
-    let startTime = 0
-    xhr.addEventListener('loadstart', (e) => {
-      startTime = e.timeStamp
+  /*
+    ====== AXIOS ======
+    (because it doesn't work with just xhr tracking)
+  */
+  if (options.axiosInstances) {
+    options.axiosInstances.forEach((axiosInstance) => {
+      axiosSpy(app, axiosInstance, options, sanitize, stringify)
     })
-    xhr.addEventListener(
-      'load',
-      app.safe((e) => {
-        const { headers: reqHs, body: reqBody } = getXHRRequestDataObject(xhr)
-        const duration = startTime > 0 ? e.timeStamp - startTime : 0
+    /* ====== <> ====== */
+  } else {
+    /* ====== XHR ====== */
+    const nativeOpen = XMLHttpRequest.prototype.open
+    XMLHttpRequest.prototype.open = function (initMethod, url) {
+      const xhr = this
+      setSessionTokenHeader((name, value) => xhr.setRequestHeader(name, value))
 
-        const hString: string | null = ignoreHeaders ? '' : xhr.getAllResponseHeaders() // might be null (though only if no response received though)
-        const resHs = hString
-          ? hString
-              .split('\r\n')
-              .map((h) => h.split(':'))
-              .filter((entry) => !isHIgnored(entry[0]))
-              .reduce(
-                (hds, [name, value]) => ({ ...hds, [name]: value }),
-                {} as Record<string, string>,
-              )
-          : {}
+      let startTime = 0
+      xhr.addEventListener('loadstart', (e) => {
+        startTime = e.timeStamp
+      })
+      xhr.addEventListener(
+        'load',
+        app.safe((e) => {
+          const { headers: reqHs, body: reqBody } = getXHRRequestDataObject(xhr)
+          const duration = startTime > 0 ? e.timeStamp - startTime : 0
 
-        const method = strMethod(initMethod)
-        const reqResInfo = sanitize({
-          url: String(url),
-          method,
-          status: xhr.status,
-          request: {
-            headers: reqHs,
-            body: reqBody,
-          },
-          response: {
-            headers: resHs,
-            body: xhr.response,
-          },
-        })
-        if (!reqResInfo) {
-          return
-        }
+          const hString: string | null = ignoreHeaders ? '' : xhr.getAllResponseHeaders() // might be null (though only if no response received though)
+          const resHs = hString
+            ? hString
+                .split('\r\n')
+                .map((h) => h.split(':'))
+                .filter((entry) => !isHIgnored(entry[0]))
+                .reduce(
+                  (hds, [name, value]) => ({ ...hds, [name]: value }),
+                  {} as Record<string, string>,
+                )
+            : {}
 
-        app.send(
-          NetworkRequest(
-            'xhr',
+          const method = strMethod(initMethod)
+          const reqResInfo = sanitize({
+            url: String(url),
             method,
-            String(reqResInfo.url),
-            stringify(reqResInfo.request),
-            stringify(reqResInfo.response),
-            xhr.status,
-            startTime + getTimeOrigin(),
-            duration,
-          ),
-        )
-      }),
-    )
+            status: xhr.status,
+            request: {
+              headers: reqHs,
+              body: reqBody,
+            },
+            response: {
+              headers: resHs,
+              body: xhr.response,
+            },
+          })
+          if (!reqResInfo) {
+            return
+          }
 
-    //TODO: handle error (though it has no Error API nor any useful information)
-    //xhr.addEventListener('error', (e) => {})
-    return nativeOpen.apply(this, arguments)
-  }
-  const nativeSend = XMLHttpRequest.prototype.send
-  XMLHttpRequest.prototype.send = function (body) {
-    const rdo = getXHRRequestDataObject(this)
-    rdo.body = body
+          app.send(
+            NetworkRequest(
+              'xhr',
+              method,
+              String(reqResInfo.url),
+              stringify(reqResInfo.request),
+              stringify(reqResInfo.response),
+              xhr.status,
+              startTime + getTimeOrigin(),
+              duration,
+            ),
+          )
+        }),
+      )
 
-    return nativeSend.apply(this, arguments)
-  }
-  const nativeSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader
-  XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
-    if (!isHIgnored(name)) {
-      const rdo = getXHRRequestDataObject(this)
-      rdo.headers[name] = value
+      //TODO: handle error (though it has no Error API nor any useful information)
+      //xhr.addEventListener('error', (e) => {})
+      return nativeOpen.apply(this, arguments)
     }
+    const nativeSend = XMLHttpRequest.prototype.send
+    XMLHttpRequest.prototype.send = function (body) {
+      const rdo = getXHRRequestDataObject(this)
+      rdo.body = body
 
-    return nativeSetRequestHeader.apply(this, arguments)
+      return nativeSend.apply(this, arguments)
+    }
+    const nativeSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader
+    XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
+      if (!isHIgnored(name)) {
+        const rdo = getXHRRequestDataObject(this)
+        rdo.headers[name] = value
+      }
+
+      return nativeSetRequestHeader.apply(this, arguments)
+    }
+    /* ====== <> ====== */
   }
-  /* ====== <> ====== */
 }
