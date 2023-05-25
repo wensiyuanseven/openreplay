@@ -68,61 +68,27 @@ export default function (
   sanitize: (data: RequestResponseData) => RequestResponseData | null,
   stringify: (data: { headers: Record<string, string>; body: any }) => string,
 ) {
+  app.debug.log('Openreplay: attaching axios spy to instance', instance)
   function captureResponseData(axiosResponseObj: AxiosResponse) {
     const { headers: reqHs, data: reqData, method, url } = axiosResponseObj.config
     const { data: rData, headers: rHs, status: globStatus, response } = axiosResponseObj
     const { data: resData, headers: resHs, status: resStatus } = response || {}
-
-    const ihOpt = opts.ignoreHeaders
-    const isHIgnoring = Array.isArray(ihOpt) ? (name: string) => ihOpt.includes(name) : () => ihOpt
-
-    function writeHeader(hsObj: Record<string, string>, header: [string, string]) {
-      if (!isHIgnoring(header[0])) {
-        hsObj[header[0]] = header[1]
-      }
-    }
-
-    let requestHs: Record<string, string> = {}
-    let responseHs: Record<string, string> = {}
-    if (reqHs.toJSON) {
-      requestHs = reqHs.toJSON()
-    } else if (reqHs instanceof Headers) {
-      reqHs.forEach((v, n) => writeHeader(requestHs, [n, v]))
-    } else if (Array.isArray(reqHs)) {
-      reqHs.forEach((h: [string, string]) => writeHeader(requestHs, h))
-    } else if (typeof reqHs === 'object') {
-      Object.entries(reqHs).forEach((h) => writeHeader(requestHs, h as unknown as [string, string]))
-    }
-
-    const usedResHeader = resHs ? resHs : rHs
-    if (usedResHeader.toJSON) {
-      responseHs = usedResHeader.toJSON()
-    } else if (usedResHeader instanceof Headers) {
-      usedResHeader.forEach((v, n) => writeHeader(responseHs, [n, v]))
-    } else if (Array.isArray(usedResHeader)) {
-      usedResHeader.forEach((h: [string, string]) => writeHeader(responseHs, h))
-    } else if (typeof usedResHeader === 'object') {
-      Object.entries(usedResHeader as unknown as Record<string, string>).forEach(
-        ([n, v]: [string, string]) => {
-          if (!isHIgnoring(n)) responseHs[n] = v
-        },
-      )
-    }
 
     const reqResInfo = sanitize({
       url,
       method: method || '',
       status: globStatus || resStatus || 0,
       request: {
-        headers: requestHs,
+        headers: reqHs.toJSON(),
         body: reqData,
       },
       response: {
-        headers: responseHs,
+        headers: resHs?.toJSON() || rHs.toJSON(),
         body: resData || rData,
       },
     })
     if (!reqResInfo) {
+      app.debug.log('Openreplay: empty request/response info, skipping')
       return
     }
     const requestStart = axiosResponseObj.config.__openreplay_timing
@@ -143,6 +109,7 @@ export default function (
   }
 
   function getStartTime(config: InternalAxiosRequestConfig) {
+    app.debug.log('Openreplay: capturing API request', config)
     config.__openreplay_timing = performance.now()
     if (opts.sessionTokenHeader) {
       const header =
@@ -168,7 +135,12 @@ export default function (
     return Promise.reject(error)
   }
 
-  const reqInt = instance.interceptors.request.use(getStartTime, null, { synchronous: true })
+  function logRequestError(ev: any) {
+    app.debug.log('Openreplay: failed API request, skipping', ev)
+  }
+  const reqInt = instance.interceptors.request.use(getStartTime, logRequestError, {
+    synchronous: true,
+  })
   const resInt = instance.interceptors.response.use(captureNetworkRequest, captureNetworkError, {
     synchronous: true,
   })
