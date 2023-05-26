@@ -2,7 +2,7 @@ import type App from '../app/index.js'
 import { NetworkRequest } from '../app/messages.gen.js'
 import { getTimeOrigin } from '../utils.js'
 import type { RequestResponseData, Options } from './network.js'
-
+import { getExceptionMessage } from './exception.js'
 interface RawAxiosHeaders {
   [key: string]: string
 }
@@ -40,6 +40,7 @@ interface AxiosResponse<T = any> {
 }
 
 export interface AxiosInstance extends Record<string, any> {
+  getUri: (config?: AxiosRequestConfig) => string
   interceptors: {
     request: AxiosInterceptorManager<InternalAxiosRequestConfig>
     response: AxiosInterceptorManager<AxiosResponse>
@@ -71,7 +72,7 @@ export default function (
   app.debug.log('Openreplay: attaching axios spy to instance', instance)
   function captureResponseData(axiosResponseObj: AxiosResponse) {
     app.debug.log('Openreplay: capturing axios response data', axiosResponseObj)
-    const { headers: reqHs, data: reqData, method, url } = axiosResponseObj.config
+    const { headers: reqHs, data: reqData, method, url, baseURL } = axiosResponseObj.config
     const { data: rData, headers: rHs, status: globStatus, response } = axiosResponseObj
     const { data: resData, headers: resHs, status: resStatus } = response || {}
 
@@ -131,6 +132,7 @@ export default function (
     const requestStart = axiosResponseObj.config.__openreplay_timing
     const duration = performance.now() - requestStart
 
+    console.log(reqResInfo, 'finally')
     app.send(
       NetworkRequest(
         'xhr',
@@ -167,8 +169,13 @@ export default function (
     return response
   }
 
-  function captureNetworkError(error: any) {
-    captureResponseData(error as AxiosResponse)
+  function captureNetworkError(error: Record<string, any>) {
+    app.debug.log('Openreplay: capturing API request error', error)
+    if (isAxiosError(error)) {
+      captureResponseData(error.response as AxiosResponse)
+    } else if (error instanceof Error) {
+      app.send(getExceptionMessage(error, []))
+    }
     return Promise.reject(error)
   }
 
@@ -186,4 +193,12 @@ export default function (
     instance.interceptors.request.eject?.(reqInt)
     instance.interceptors.response.eject?.(resInt)
   })
+}
+
+function isAxiosError(payload: Record<string, any>) {
+  return isObject(payload) && payload.isAxiosError === true
+}
+
+function isObject(thing: any) {
+  return thing !== null && typeof thing === 'object'
 }
