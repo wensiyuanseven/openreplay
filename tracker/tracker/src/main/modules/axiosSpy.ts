@@ -70,9 +70,10 @@ export default function (
   stringify: (data: { headers: Record<string, string>; body: any }) => string,
 ) {
   app.debug.log('Openreplay: attaching axios spy to instance', instance)
-  function captureResponseData(axiosResponseObj: AxiosResponse) {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async function captureResponseData(axiosResponseObj: AxiosResponse) {
     app.debug.log('Openreplay: capturing axios response data', axiosResponseObj)
-    const { headers: reqHs, data: reqData, method, url, baseURL } = axiosResponseObj.config
+    const { headers: reqHs, data: reqData, method, url } = axiosResponseObj.config
     const { data: rData, headers: rHs, status: globStatus, response } = axiosResponseObj
     const { data: resData, headers: resHs, status: resStatus } = response || {}
 
@@ -165,14 +166,14 @@ export default function (
 
   function captureNetworkRequest(response: AxiosResponse) {
     if (opts.failuresOnly) return response
-    captureResponseData(response)
+    void captureResponseData(response)
     return response
   }
 
   function captureNetworkError(error: Record<string, any>) {
     app.debug.log('Openreplay: capturing API request error', error)
     if (isAxiosError(error)) {
-      captureResponseData(error.response as AxiosResponse)
+      void captureResponseData(error.response as AxiosResponse)
     } else if (error instanceof Error) {
       app.send(getExceptionMessage(error, []))
     }
@@ -182,17 +183,8 @@ export default function (
   function logRequestError(ev: any) {
     app.debug.log('Openreplay: failed API request, skipping', ev)
   }
-  const reqInt = instance.interceptors.request.use(getStartTime, logRequestError, {
-    synchronous: true,
-  })
-  const resInt = instance.interceptors.response.use(captureNetworkRequest, captureNetworkError, {
-    synchronous: true,
-  })
-
-  app.attachStopCallback(() => {
-    instance.interceptors.request.eject?.(reqInt)
-    instance.interceptors.response.eject?.(resInt)
-  })
+  instance.interceptors.request.use(getStartTime, logRequestError)
+  instance.interceptors.response.use(captureNetworkRequest, captureNetworkError)
 }
 
 function isAxiosError(payload: Record<string, any>) {

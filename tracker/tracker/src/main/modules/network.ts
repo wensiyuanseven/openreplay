@@ -258,7 +258,15 @@ export default function (app: App, opts: Partial<Options> = {}) {
         'load',
         app.safe((e) => {
           const { headers: reqHs, body: reqBody } = getXHRRequestDataObject(xhr)
-          console.log(reqHs, reqBody, xhr, xhr.getAllResponseHeaders())
+          app.debug.log(
+            'Openreplay: XHR load',
+            xhr,
+            xhr.getAllResponseHeaders(),
+            getXHRRequestDataObject(xhr),
+          )
+          if (!xhr.getAllResponseHeaders())
+            app.debug.warn('Openreplay: XHR no response headers returned')
+
           const duration = startTime > 0 ? e.timeStamp - startTime : 0
 
           const hString: string | null = ignoreHeaders ? '' : xhr.getAllResponseHeaders() // might be null (though only if no response received though)
@@ -314,12 +322,10 @@ export default function (app: App, opts: Partial<Options> = {}) {
     XMLHttpRequest.prototype.send = function (body) {
       const rdo = getXHRRequestDataObject(this)
       rdo.body = body
-      console.log('XHR send', rdo)
       return nativeSend.apply(this, arguments)
     }
     const nativeSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader
     XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
-      console.log(name, value, isHIgnored(name), getXHRRequestDataObject(this))
       if (!isHIgnored(name)) {
         const rdo = getXHRRequestDataObject(this)
         rdo.headers[name] = value
