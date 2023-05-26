@@ -258,28 +258,31 @@ export default function (app: App, opts: Partial<Options> = {}) {
         'load',
         app.safe((e) => {
           const { headers: reqHs, body: reqBody } = getXHRRequestDataObject(xhr)
-          app.debug.log(
-            'Openreplay: XHR load',
-            xhr,
-            xhr.getAllResponseHeaders(),
-            getXHRRequestDataObject(xhr),
-          )
           if (!xhr.getAllResponseHeaders())
             app.debug.warn('Openreplay: XHR no response headers returned')
 
           const duration = startTime > 0 ? e.timeStamp - startTime : 0
 
-          const hString: string | null = ignoreHeaders ? '' : xhr.getAllResponseHeaders() // might be null (though only if no response received though)
-          const resHs = hString
-            ? hString
-                .split('\r\n')
-                .map((h) => h.split(':'))
-                .filter((entry) => !isHIgnored(entry[0]))
-                .reduce(
-                  (hds, [name, value]) => ({ ...hds, [name]: value }),
-                  {} as Record<string, string>,
-                )
-            : {}
+          const hString: string | null = xhr.getAllResponseHeaders() // might be null (though only if no response received though)
+          const headersArr = hString.trim().split(/[\r\n]+/)
+          const headerMap: Record<string, string> = {}
+          headersArr.forEach(function (line) {
+            const parts = line.split(': ')
+            const header = parts.shift() as unknown as string
+            if (!isHIgnored(header)) {
+              headerMap[header] = parts.join(': ')
+            }
+          })
+          // const resHs = hString
+          //   ? hString
+          //       .split('\r\n')
+          //       .map((h) => h.split(':'))
+          //       .filter((entry) => !isHIgnored(entry[0]))
+          //       .reduce(
+          //         (hds, [name, value]) => ({ ...hds, [name]: value }),
+          //         {} as Record<string, string>,
+          //       )
+          //   : {}
 
           const method = strMethod(initMethod)
           const reqResInfo = sanitize({
@@ -291,13 +294,34 @@ export default function (app: App, opts: Partial<Options> = {}) {
               body: reqBody,
             },
             response: {
-              headers: resHs,
+              headers: headerMap,
               body: xhr.response,
             },
           })
           if (!reqResInfo) {
             return
           }
+
+          app.debug.log(
+            'Openreplay: XHR load',
+            reqResInfo.url,
+            {
+              instance: xhr,
+              headers: xhr.getAllResponseHeaders(),
+              requestData: getXHRRequestDataObject(xhr),
+              result: NetworkRequest(
+                'xhr',
+                method,
+                String(reqResInfo.url),
+                stringify(reqResInfo.request),
+                stringify(reqResInfo.response),
+                xhr.status,
+                startTime + getTimeOrigin(),
+                duration,
+              ),
+            },
+            headerMap,
+          )
 
           app.send(
             NetworkRequest(
