@@ -27,7 +27,7 @@ import ConstructedStyleSheets from './modules/constructedStyleSheets.js'
 import Selection from './modules/selection.js'
 import Tabs from './modules/tabs.js'
 import { IN_BROWSER, deprecationWarn, DOCS_HOST } from './utils.js'
-import FeatureFlags, { IFeatureFlag } from './modules/featureFlags.js'
+// import FeatureFlags, { IFeatureFlag } from './modules/featureFlags.js'
 import type { Options as AppOptions } from './app/index.js'
 import type { Options as ConsoleOptions } from './modules/console.js'
 import type { Options as ExceptionOptions } from './modules/exception.js'
@@ -51,9 +51,9 @@ export type Options = Partial<
   autoResetOnWindowOpen?: boolean
   network?: NetworkOptions
   mouse?: MouseHandlerOptions
-  flags?: {
-    onFlagsLoad?: (flags: IFeatureFlag[]) => void
-  }
+  // flags?: {
+  //   onFlagsLoad?: (flags: IFeatureFlag[]) => void
+  // }
   // dev only
   __DISABLE_SECURE_MODE?: boolean
 }
@@ -91,7 +91,7 @@ function processOptions(obj: any): obj is Options {
 }
 
 export default class API {
-  public featureFlags: FeatureFlags
+  // public featureFlags: FeatureFlags
   private readonly app: App | null = null
   constructor(private readonly options: Options) {
     if (!IN_BROWSER || !processOptions(options)) {
@@ -142,15 +142,15 @@ export default class API {
       Network(app, options.network)
       Selection(app)
       Tabs(app)
-      this.featureFlags = new FeatureFlags(app)
+      // this.featureFlags = new FeatureFlags(app)
       ;(window as any).__OPENREPLAY__ = this
 
-      app.attachStartCallback(() => {
-        if (options.flags?.onFlagsLoad) {
-          this.onFlagsLoad(options.flags.onFlagsLoad)
-        }
-        void this.featureFlags.reloadFlags()
-      })
+      // app.attachStartCallback(() => {
+      //   if (options.flags?.onFlagsLoad) {
+      //     this.featureFlags.onFlagsLoad(options.flags.onFlagsLoad)
+      //   }
+      //   void this.featureFlags.reloadFlags()
+      // })
       if (options.autoResetOnWindowOpen) {
         const wOpen = window.open
         app.attachStartCallback(() => {
@@ -185,29 +185,29 @@ export default class API {
     }
   }
 
-  isFlagEnabled(flagName: string): boolean {
-    return this.featureFlags.isFlagEnabled(flagName)
-  }
-
-  onFlagsLoad(callback: (flags: IFeatureFlag[]) => void): void {
-    this.featureFlags.onFlagsLoad(callback)
-  }
-
-  clearPersistFlags() {
-    this.featureFlags.clearPersistFlags()
-  }
-
-  reloadFlags() {
-    return this.featureFlags.reloadFlags()
-  }
-
-  getFeatureFlag(flagName: string): IFeatureFlag | undefined {
-    return this.featureFlags.getFeatureFlag(flagName)
-  }
-
-  getAllFeatureFlags() {
-    return this.featureFlags.flags
-  }
+  // isFlagEnabled(flagName: string): boolean {
+  //   return this.featureFlags.isFlagEnabled(flagName)
+  // }
+  //
+  // onFlagsLoad(callback: (flags: IFeatureFlag[]) => void): void {
+  //   this.featureFlags.onFlagsLoad(callback)
+  // }
+  //
+  // clearPersistFlags() {
+  //   this.featureFlags.clearPersistFlags()
+  // }
+  //
+  // reloadFlags() {
+  //   return this.featureFlags.reloadFlags()
+  // }
+  //
+  // getFeatureFlag(flagName: string): IFeatureFlag | undefined {
+  //   return this.featureFlags.getFeatureFlag(flagName)
+  // }
+  //
+  // getAllFeatureFlags() {
+  //   return this.featureFlags.flags
+  // }
 
   use<T>(fn: (app: App | null, options?: Options) => T): T {
     return fn(this.app, this.options)
