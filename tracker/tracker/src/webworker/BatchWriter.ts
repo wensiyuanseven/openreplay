@@ -19,6 +19,7 @@ export default class BatchWriter {
     private timestamp: number,
     private url: string,
     private readonly onBatch: (batch: Uint8Array) => void,
+    private readonly isDictDisabled: boolean,
   ) {
     this.prepare()
   }
@@ -26,9 +27,11 @@ export default class BatchWriter {
   private writeType(m: Message): boolean {
     return this.encoder.uint(m[0])
   }
+
   private writeFields(m: Message): boolean {
     return this.encoder.encode(m)
   }
+
   private writeSizeAt(size: number, offset: number): void {
     //boolean?
     for (let i = 0; i < SIZE_BYTES; i++) {
@@ -82,6 +85,7 @@ export default class BatchWriter {
   }
 
   private beaconSizeLimit = 1e6
+
   setBeaconSizeLimit(limit: number) {
     this.beaconSizeLimit = limit
   }
@@ -102,12 +106,14 @@ export default class BatchWriter {
       this.url = message[1] // .url
     }
     if (message[0] === Messages.Type.SetNodeAttribute) {
-      message = [
-        Messages.Type.SetNodeAttributeDict,
-        message[1],
-        this.applyDict(message[2]),
-        this.applyDict(message[3]),
-      ] as Messages.SetNodeAttributeDict
+      if (!this.isDictDisabled) {
+        message = [
+          Messages.Type.SetNodeAttributeDict,
+          message[1],
+          this.applyDict(message[2]),
+          this.applyDict(message[3]),
+        ] as Messages.SetNodeAttributeDict
+      }
     }
     if (this.writeWithSize(message)) {
       return

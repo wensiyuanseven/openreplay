@@ -146,6 +146,7 @@ self.onmessage = ({ data }: any): any => {
       data.timestamp,
       data.url,
       (batch) => sender && sender.push(batch),
+      data.isDictDisabled,
     )
     if (sendIntervalID === null) {
       sendIntervalID = setInterval(finalize, AUTO_SEND_INTERVAL)

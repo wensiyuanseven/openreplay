@@ -74,6 +74,7 @@ type AppOptions = {
   __debug__?: LoggerOptions
   localStorage: Storage | null
   sessionStorage: Storage | null
+  disableStringDict?: boolean
 
   // @deprecated
   onStart?: StartCallback
@@ -132,6 +133,7 @@ export default class App {
         __debug_report_edp: null,
         localStorage: null,
         sessionStorage: null,
+        disableStringDict: false,
       },
       options,
     )
@@ -455,6 +457,7 @@ export default class App {
       url: document.URL,
       connAttemptCount: this.options.connAttemptCount,
       connAttemptGap: this.options.connAttemptGap,
+      isDictDisabled: Boolean(this.options.disableStringDict),
     })
 
     const lsReset = this.sessionStorage.getItem(this.options.session_reset_key) !== null
