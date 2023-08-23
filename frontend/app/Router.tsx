@@ -30,7 +30,8 @@ const components = {
   FunnelDetailsPure: lazy(() => import('Components/Funnels/FunnelDetails')),
   FunnelIssueDetails: lazy(() => import('Components/Funnels/FunnelIssueDetails')),
   FunnelPagePure: lazy(() => import('Components/Funnels/FunnelPage')),
-  MultiviewPure: lazy(() => import('Components/Session_/Multiview/Multiview'))
+  MultiviewPure: lazy(() => import('Components/Session_/Multiview/Multiview')),
+  AdminConsolePure: lazy(() => import('Components/AdminConsole/AdminConsoleView'))
 };
 
 
@@ -45,7 +46,8 @@ const enhancedComponents = {
   FunnelPage: withSiteIdUpdater(components.FunnelPagePure),
   FunnelsDetails: withSiteIdUpdater(components.FunnelDetailsPure),
   FunnelIssue: withSiteIdUpdater(components.FunnelIssueDetails),
-  Multiview: withSiteIdUpdater(components.MultiviewPure)
+  Multiview: withSiteIdUpdater(components.MultiviewPure),
+  AdminConsole: withSiteIdUpdater(components.AdminConsolePure)
 };
 
 const withSiteId = routes.withSiteId;
@@ -82,6 +84,7 @@ const ONBOARDING_PATH = routes.onboarding();
 const ONBOARDING_REDIRECT_PATH = routes.onboarding(OB_DEFAULT_TAB);
 const MULTIVIEW_PATH = routes.multiview();
 const MULTIVIEW_INDEX_PATH = routes.multiviewIndex();
+const ADMIN_CONSOLE_PATH = routes.adminConsole();
 
 
 interface RouterProps extends RouteComponentProps, ConnectedProps<typeof connector> {
@@ -294,6 +297,8 @@ const Router: React.FC<RouterProps> = (props) => {
                   path={withSiteId(LIVE_SESSION_PATH, siteIdList)}
                   render={(props) => <enhancedComponents.Session {...props} live />}
                 />
+                <Route exact strict path={withSiteId(ADMIN_CONSOLE_PATH, siteIdList)}
+                       component={enhancedComponents.AdminConsole} />
                 {Object.entries(routes.redirects).map(([fr, to]) => (
                   <Redirect key={fr} exact strict from={fr} to={to} />
                 ))}

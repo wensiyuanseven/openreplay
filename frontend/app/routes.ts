@@ -97,6 +97,7 @@ export const bookmarks = (params?: Record<string, any>): string => queried('/boo
 export const assist = (params?: Record<string, any>): string => queried('/assist', params);
 export const recordings = (params?: Record<string, any>): string => queried('/recordings', params);
 export const multiviewIndex = (params?: Record<string, any>): string => queried('/multiview', params);
+export const adminConsole = (params?: Record<string, any>): string => queried('/admin-console', params);
 export const multiview = (sessionsQuery = ':sessionsquery', hash?: string | number): string =>
   hashed(`/multiview/${sessionsQuery}`, hash);
 export const session = (sessionId = ':sessionId', hash?: string | number): string =>
