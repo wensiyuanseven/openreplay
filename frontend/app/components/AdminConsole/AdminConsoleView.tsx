@@ -1,7 +1,11 @@
 import React from 'react';
-import { Card, Dropdown, Space, Tag } from 'antd';
+import { Card, Dropdown, Space, Tabs, Tag } from 'antd';
 import { CloudUploadOutlined, CodeSandboxOutlined, DownOutlined } from '@ant-design/icons';
 import Statistics from 'Components/AdminConsole/components/Statistics';
+import AdminConsoleContent from 'Components/AdminConsole/AdminConsoleContent';
+
+
+const { TabPane } = Tabs;
 
 function AdminConsoleView() {
 
@@ -27,22 +31,7 @@ function AdminConsoleView() {
         <Statistics />
       </Card>
 
-      <Card title='Admin Console' extra={
-        <Space>
-          Past
-
-          <Dropdown menu={{  }}>
-            <a onClick={(e) => e.preventDefault()}>
-              <Space>
-                Hover me
-                <DownOutlined />
-              </Space>
-            </a>
-          </Dropdown>
-        </Space>
-      }>
-        <Statistics />
-      </Card>
+      <AdminConsoleContent />
     </div>
   );
 }
