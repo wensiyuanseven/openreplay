@@ -113,6 +113,8 @@ export default class Assist {
       observer && observer.observe(titleNode, { subtree: true, characterData: true, childList: true, })
     })
     app.attachStopCallback(() => {
+      console.log('Openreplay: triggered stop callback, normal restart: ', this.assistDemandedRestart)
+      console.trace('Tracing restart')
       if (this.assistDemandedRestart) { return }
       this.clean()
       observer && observer.disconnect()
@@ -254,9 +256,18 @@ export default class Assist {
         onDisconnect: this.options.onAgentConnect?.(info),
         agentInfo: info, // TODO ?
       }
-      this.assistDemandedRestart = true
-      this.app.stop()
-      this.app.start().then(() => { this.assistDemandedRestart = false }).catch(e => app.debug.error(e))
+      if (this.app.active()) {
+        this.assistDemandedRestart = true
+        this.app.stop()
+        setTimeout(() => {
+          this.app.start().then(() => { this.assistDemandedRestart = false })
+            .then(() => {
+              this.remoteControl?.reconnect([id,])
+            })
+            .catch(e => app.debug.error(e))
+          // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
+        }, 400)
+      }
     })
     socket.on('AGENTS_CONNECTED', (ids: string[]) => {
       ids.forEach(id =>{
@@ -266,10 +277,18 @@ export default class Assist {
           onDisconnect: this.options.onAgentConnect?.(agentInfo),
         }
       })
-      this.assistDemandedRestart = true
-      this.app.stop()
-      this.app.start().then(() => { this.assistDemandedRestart = false }).catch(e => app.debug.error(e))
-
+      if (this.app.active()) {
+        this.assistDemandedRestart = true
+        this.app.stop()
+        setTimeout(() => {
+          this.app.start().then(() => { this.assistDemandedRestart = false })
+            .then(() => {
+              this.remoteControl?.reconnect(ids)
+            })
+            .catch(e => app.debug.error(e))
+          // TODO: check if it's needed; basically allowing some time for the app to finish everything before starting again
+        }, 400)
+      }
      this.remoteControl?.reconnect(ids)
     })
 
