@@ -242,7 +242,11 @@ function install() {
   log title "Installing OpenReplay"
   clone_repo
   err_cd "$tmp_dir/openreplay/scripts/helmcharts"
-  DOMAIN_NAME=$domain_name bash init.sh
+  # Set proper migration version
+  [[ -z $OR_VERSION ]] || {
+    HELM_OPTIONS="--set dbMigrationUpstreamBranch=$OR_VERSION"
+  }
+  HELM_OPTIONS=$HELM_OPTIONS DOMAIN_NAME=$domain_name bash init.sh
   return
 }
 
