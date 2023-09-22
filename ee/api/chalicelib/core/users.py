@@ -626,7 +626,7 @@ def get_by_invitation_token(token, pass_token=None):
     return helper.dict_to_camel_case(r)
 
 
-def auth_exists(user_id, tenant_id, jwt_iat, jwt_aud):
+def auth_exists(user_id, tenant_id, jwt_iat):
     with pg_client.PostgresClient() as cur:
         cur.execute(
             cur.mogrify(
@@ -650,7 +650,7 @@ def auth_exists(user_id, tenant_id, jwt_iat, jwt_aud):
              and (abs(jwt_iat - r["jwt_iat"]) <= 1))
 
 
-def refresh_auth_exists(user_id, tenant_id, jwt_iat, jwt_aud, jwt_jti=None):
+def refresh_auth_exists(user_id, tenant_id, jwt_jti=None):
     with pg_client.PostgresClient() as cur:
         cur.execute(
             cur.mogrify(f"""SELECT user_id 
@@ -669,9 +669,9 @@ def refresh_auth_exists(user_id, tenant_id, jwt_iat, jwt_aud, jwt_jti=None):
 def change_jwt_iat_jti(user_id):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""UPDATE public.users
-                                SET jwt_iat = timezone('utc'::text, now()),
+                                SET jwt_iat = timezone('utc'::text, now()-INTERVAL '2s'),
                                     jwt_refresh_jti = 0, 
-                                    jwt_refresh_iat = timezone('utc'::text, now()) 
+                                    jwt_refresh_iat = timezone('utc'::text, now()-INTERVAL '2s') 
                                 WHERE user_id = %(user_id)s 
                                 RETURNING EXTRACT (epoch FROM jwt_iat)::BIGINT AS jwt_iat, 
                                           jwt_refresh_jti, 
@@ -685,7 +685,7 @@ def change_jwt_iat_jti(user_id):
 def refresh_jwt_iat_jti(user_id):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""UPDATE public.users
-                                SET jwt_iat = timezone('utc'::text, now()),
+                                SET jwt_iat = timezone('utc'::text, now()-INTERVAL '2s'),
                                     jwt_refresh_jti = jwt_refresh_jti + 1 
                                 WHERE user_id = %(user_id)s 
                                 RETURNING EXTRACT (epoch FROM jwt_iat)::BIGINT AS jwt_iat, 
@@ -748,8 +748,6 @@ def authenticate(email, password, for_change_password=False) -> dict | bool | No
             return {"errors": ["must sign-in with SSO, enforced by admin"]}
 
         jwt_iat, jwt_r_jti, jwt_r_iat = change_jwt_iat_jti(user_id=r['userId'])
-        # jwt_iat = TimeUTC.datetime_to_timestamp(jwt_iat)
-        # jwt_r_iat = TimeUTC.datetime_to_timestamp(jwt_r_iat)
         return {
             "jwt": authorizers.generate_jwt(user_id=r['userId'], tenant_id=r['tenantId'], iat=jwt_iat,
                                             aud=f"front:{helper.get_stage_name()}"),
