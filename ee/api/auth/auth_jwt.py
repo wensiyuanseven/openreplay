@@ -31,7 +31,7 @@ class JWTAuth(HTTPBearer):
         super(JWTAuth, self).__init__(auto_error=auto_error)
 
     async def __call__(self, request: Request) -> Optional[schemas_ee.CurrentContext]:
-        if request.url.path == "/api/refresh":
+        if request.url.path in ["/refresh", "/api/refresh"]:
             refresh_token = request.cookies.get("refreshToken")
             jwt_payload = authorizers.jwt_refresh_authorizer(scheme="Bearer", token=refresh_token)
             if jwt_payload is None or jwt_payload.get("jti") is None:
