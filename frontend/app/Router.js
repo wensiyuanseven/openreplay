@@ -240,7 +240,9 @@ class Router extends React.Component {
         );
       } else {
         return (
-          <NotFoundPage />
+            <>
+              <NotFoundPage logIn />
+            </>
         );
       }
     }
