@@ -314,8 +314,6 @@ class Router extends React.Component {
               />
               <Route exact strict path={withSiteId(SESSION_PATH, siteIdList)} component={Session} />
               <Route exact strict path={withSiteId(LIVE_SESSION_PATH, siteIdList)} component={LiveSession} />
-              <Route exact strict path={withSiteId(LIVE_SESSION_PATH, siteIdList)}
-                     render={(props) => <Session {...props} live />} />
               {routes.redirects.map(([fr, to]) => (
                 <Redirect key={fr} exact strict from={fr} to={to} />
               ))}

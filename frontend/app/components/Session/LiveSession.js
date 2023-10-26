@@ -18,6 +18,7 @@ function LiveSession({
     session,
     fetchFailed,
     clearCurrentSession,
+    errors,
 }) {
     const [initialLoading, setInitialLoading] = React.useState(true);
     usePageTitle('OpenReplay Assist');
@@ -52,6 +53,7 @@ function LiveSession({
     return (
         <Loader className="flex-1" loading={initialLoading}>
             {session.sessionId && <LivePlayer />}
+            {errors ? <div style={{ opacity: 0 }}>{errors}</div> : null}
         </Loader>
     );
 }
@@ -74,6 +76,7 @@ export default withPermissions(
                 .pathname.includes('/sessions');
             return {
                 sessionId,
+                errors: state.getIn(['sessions', 'errors']),
                 fetchFailed: state.getIn(['sessions', 'fetchFailed']),
                 session: state.getIn(['sessions', 'current']),
                 hasSessionsPath: hasSessiosPath && !isAssist,
