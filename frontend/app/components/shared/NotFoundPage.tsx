@@ -10,7 +10,10 @@ function NotFoundPage({ logIn }: { logIn: boolean }) {
       }}
     >
       {logIn ? (
-        <div>please check your auth method for iframe</div>
+              <div className="flex flex-col items-center">
+                  <div className="text-2xl -mt-8">Session not found.</div>
+                  <div className="text-sm">Please check your Auth method for iFrame</div>
+              </div>
       ) : (
         <div className="flex flex-col items-center">
           <div className="text-2xl -mt-8">Session not found.</div>
