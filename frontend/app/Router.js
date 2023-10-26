@@ -240,9 +240,15 @@ class Router extends React.Component {
         );
       } else {
         return (
-            <>
-              <NotFoundPage logIn />
-            </>
+            <Suspense fallback={<Loader loading={true} className="flex-1" />}>
+              <Switch>
+                <Route exact strict path={FORGOT_PASSWORD} component={ForgotPassword} />
+                <Route exact strict path={LOGIN_PATH} component={changePassword ? UpdatePassword : Login} />
+                <Route exact strict path={SIGNUP_PATH} component={Signup} />
+                <Redirect to={LOGIN_PATH} />
+              </Switch>
+              {!isEnterprise && <SupportCallout /> }
+            </Suspense>
         );
       }
     }
