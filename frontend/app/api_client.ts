@@ -2,7 +2,7 @@ import store from 'App/store';
 import { queried } from './routes';
 import { setJwt } from 'Duck/user';
 
-const siteIdRequiredPaths: string[] = [
+const siteIdRequiredPaths = new Set([
   '/dashboard',
   '/sessions',
   '/events',
@@ -30,7 +30,7 @@ const siteIdRequiredPaths: string[] = [
   '/notes',
   '/feature-flags',
   '/check-recording-status'
-];
+]);
 
 export const clean = (obj: any, forbiddenValues: any[] = [undefined, '']): any => {
   const keys = Array.isArray(obj)
@@ -50,49 +50,95 @@ export const clean = (obj: any, forbiddenValues: any[] = [undefined, '']): any =
 };
 
 export default class APIClient {
-  private init: RequestInit;
   private readonly siteId: string | undefined;
-  private refreshingTokenPromise: Promise<string> | null = null;
+  private readonly headers: Headers;
 
   constructor() {
-    const jwt = store.getState().getIn(['user', 'jwt']);
-    const siteId = store.getState().getIn(['site', 'siteId']);
-    this.init = {
-      headers: new Headers({
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      })
-    };
-    if (jwt !== null) {
-      (this.init.headers as Headers).set('Authorization', `Bearer ${jwt}`);
-    }
-    this.siteId = siteId;
+    this.siteId = store.getState().getIn(['site', 'siteId']);
+    this.headers = new Headers({
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
+    });
+    this.updateJwtHeader();
   }
 
-  private getInit(method: string = 'GET', params?: any): RequestInit {
-    // Always fetch the latest JWT from the store
+  private updateJwtHeader(): void {
     const jwt = store.getState().getIn(['user', 'jwt']);
-    const headers = new Headers({
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    });
-
     if (jwt) {
-      headers.set('Authorization', `Bearer ${jwt}`);
+      this.headers.set('Authorization', `Bearer ${jwt}`);
     }
+  }
 
-    // Create the init object
-    const init: RequestInit = {
+  private getInit(method: string, params?: any): RequestInit {
+    return {
       method,
-      headers,
-      body: params ? JSON.stringify(params) : undefined,
+      headers: this.headers,
+      body: ['GET', 'HEAD'].includes(method) ? undefined : JSON.stringify(params)
     };
+  }
 
-    if (method === 'GET') {
-      delete init.body; // GET requests shouldn't have a body
+  private async makeRequest(path: string, method: string, params?: any, options: {
+    clean?: boolean
+  } = { clean: true }): Promise<Response> {
+    this.updateJwtHeader();
+    const jwt = store.getState().getIn(['user', 'jwt']);
+    if (!path.includes('/refresh') && jwt && this.isTokenExpired(jwt)) {
+      await this.handleTokenRefresh();
     }
 
-    return init;
+    const cleanedParams = options.clean && params ? clean(params) : params;
+    const init = this.getInit(method, cleanedParams);
+
+    let edp = this.determineEndpoint(path);
+    return window.fetch(edp + path, init).then(this.handleResponse);
+  }
+
+  private determineEndpoint(path: string): string {
+    let edp = window.env.API_EDP || window.location.origin + '/api';
+
+    // Check if the path already contains siteId to prevent double appending
+    if (this.needsSiteId(path) && !path.includes(`/${this.siteId}`)) {
+      edp = `${edp}/${this.siteId}`;
+    }
+
+    return edp;
+  }
+
+  private needsSiteId(path: string): boolean {
+    if (!this.siteId) {
+      return false;
+    }
+
+    for (const requiredPath of siteIdRequiredPaths) {
+      if (path.includes(requiredPath)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private handleResponse(response: Response): Promise<Response> {
+    if (!response.ok) {
+      throw new Error(`! ${response.status} error on ${response.url}`);
+    }
+    return Promise.resolve(response);
+  }
+
+  get(path: string, params?: any, options?: any): Promise<Response> {
+    return this.makeRequest(queried(path, params), 'GET', undefined, options);
+  }
+
+  post(path: string, params?: any, options?: any): Promise<Response> {
+    return this.makeRequest(path, 'POST', params);
+  }
+
+  put(path: string, params?: any, options?: any): Promise<Response> {
+    return this.makeRequest(path, 'PUT', params);
+  }
+
+  delete(path: string, params?: any, options?: any): Promise<Response> {
+    return this.makeRequest(path, 'DELETE', params);
   }
 
   private decodeJwt(jwt: string): any {
@@ -118,53 +164,10 @@ export default class APIClient {
     return this.refreshingTokenPromise;
   }
 
-  async fetch(path: string, params?: any, method: string = 'GET', options: {
-    clean?: boolean
-  } = { clean: true }): Promise<Response> {
-    let jwt = store.getState().getIn(['user', 'jwt']);
-    if (!path.includes('/refresh') && jwt && this.isTokenExpired(jwt)) {
-      jwt = await this.handleTokenRefresh();
-      (this.init.headers as Headers).set('Authorization', `Bearer ${jwt}`);
-    }
-
-    const init = this.getInit(method, options.clean ? clean(params) : params);
-
-
-    if (params !== undefined) {
-      const cleanedParams = options.clean ? clean(params) : params;
-      this.init.body = JSON.stringify(cleanedParams);
-    }
-
-    if (this.init.method === 'GET') {
-      delete this.init.body;
-    }
-
-    let fetch = window.fetch;
-    let edp = window.env.API_EDP || window.location.origin + '/api';
-
-    if (
-      path !== '/targets_temp' &&
-      !path.includes('/metadata/session_search') &&
-      !path.includes('/assist/credentials') &&
-      !!this.siteId &&
-      siteIdRequiredPaths.some(sidPath => path.startsWith(sidPath))
-    ) {
-      edp = `${edp}/${this.siteId}`;
-    }
-
-    return fetch(edp + path, init).then((response) => {
-      if (response.ok) {
-        return response;
-      } else {
-        return Promise.reject({ message: `! ${this.init.method} error on ${path}; ${response.status}`, response });
-      }
-    });
-  }
-
   async refreshToken(): Promise<string> {
     try {
       const response = await this.fetch('/refresh', {
-        headers: this.init.headers
+        headers: this.headers
       }, 'GET', { clean: false });
 
       if (!response.ok) {
@@ -180,25 +183,5 @@ export default class APIClient {
       store.dispatch(setJwt(null));
       throw error;
     }
-  }
-
-  get(path: string, params?: any, options?: any): Promise<Response> {
-    this.init.method = 'GET';
-    return this.fetch(queried(path, params), 'GET', options);
-  }
-
-  post(path: string, params?: any, options?: any): Promise<Response> {
-    this.init.method = 'POST';
-    return this.fetch(path, params, 'POST');
-  }
-
-  put(path: string, params?: any, options?: any): Promise<Response> {
-    this.init.method = 'PUT';
-    return this.fetch(path, params, 'PUT');
-  }
-
-  delete(path: string, params?: any, options?: any): Promise<Response> {
-    this.init.method = 'DELETE';
-    return this.fetch(path, params, 'DELETE');
   }
 }
