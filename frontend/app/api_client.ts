@@ -166,7 +166,7 @@ export default class APIClient {
 
   async refreshToken(): Promise<string> {
     try {
-      const response = await this.fetch('/refresh', {
+      const response = await this.makeRequest('/refresh', {
         headers: this.headers
       }, 'GET', { clean: false });
 
