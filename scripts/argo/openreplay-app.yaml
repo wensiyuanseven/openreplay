@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: example-helm-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://your-helm-chart-repo-url.git'  # URL to the repository containing the Helm chart
+    targetRevision: HEAD  # or a specific tag/branch
+    path: path/to/helm/chart  # Path to the Helm chart in the repository
+    helm:
+      valueFiles:  # List of value files in order of precedence
+        - values-production.yaml  # Override values file
+  destination:
+    server: 'https://kubernetes.default.svc'  # Kubernetes cluster URL
+    namespace: target-namespace  # Namespace where the Helm chart will be deployed
+  syncPolicy:
+    automated:  # Optional: Uncomment to enable automatic syncing
+      prune: true
+      selfHeal: true

@@ -1,0 +1,4 @@
+resources:
+  - git::https://github.com/openreplay/openreplay//scripts/helmcharts/databases/
+  - git::https://github.com/openreplay/openreplay//scripts/argo/openreplay/
+  - git::https://github.com/openreplay/openreplay//scripts/helmcharts/openreplay/
