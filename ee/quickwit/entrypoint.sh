@@ -9,4 +9,13 @@ find /quickwit/ -type f -name "*.yaml" -exec sed -i "s/{{QUICKWIT_TOPIC}}/${QUIC
 find /quickwit/ -type f -name "*.yaml" -exec sed -i "s/{{QUICKWIT_PORT}}/${QUICKWIT_PORT}/g" {} \;
 find /quickwit/ -type f -name "*.yaml" -exec sed -i "s#{{data_dir_path}}#${data_dir_path}#g" {} \;
 
-./quickwit_start_task.sh & ./setup_indexes_and_worker.sh && fg
+./quickwit_start_task.sh & pid1=$!
+sleep 120
+echo "Creating indexes.."
+quickwit index create --index-config index-config-fetch.yaml
+quickwit index create --index-config index-config-graphql.yaml
+quickwit index create --index-config index-config-pageevent.yaml
+echo "Running kafka reader.."
+python3 -u consumer.py & pid2=$!
+wait $pid1 $pid2
+

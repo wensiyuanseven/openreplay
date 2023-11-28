@@ -92,9 +92,9 @@ class KafkaFilter():
             "enable.auto.commit": False
         })
         self.consumer.subscribe([topic])
-        self.queues = {'fetchevent': Queue(self.fetchevent_maxsize),
-                'graphql': Queue(self.graphql_maxsize),
-                'pageevent': Queue(self.pageevent_maxsize)
+        self.queues = {'Fetchevent': Queue(self.fetchevent_maxsize),
+                'Graphql': Queue(self.graphql_maxsize),
+                'Pageevent': Queue(self.pageevent_maxsize)
                 }
 
     async def add_to_queue(self, message):

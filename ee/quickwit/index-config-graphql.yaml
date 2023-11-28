@@ -4,7 +4,7 @@
 
 version: 0.6
 
-index_id: "graphql"
+index_id: "Graphql"
 index_uri: "s3://openreplay-quickwit/quickwit-indexes/graphql"
 
 doc_mapping:
@@ -50,3 +50,9 @@ search_settings:
 retention:
   period: 30 days
   schedule: hourly
+
+indexing_settings:
+  merge_policy:
+    type: "stable_log"
+    min_level_num_docs: 40000
+    maturation_period: 12h
