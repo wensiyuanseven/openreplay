@@ -6,8 +6,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:your-username/argo-cd-config.git
-    path: .
+    repoURL: git@github.com:rjshrjndrn/argo-or-config
+    path: client1/domain.com
     targetRevision: HEAD
     sshPrivateKeySecret:
       name: my-github-ssh-key
