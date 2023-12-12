@@ -11,15 +11,17 @@ spec:
     helm:
       valueFiles:
         - vars.yaml  # Default values file in the Helm chart repo
+    plugin:
+      name: helm-yq-merge
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: your-namespace
   syncPolicy:
     automated: {}
-  # Overlay from the separate configuration repository
-  sourceRepos:
-    - 'https://github.com/your-username/configurations.git'
-  helm:
-    fileParameters:
-      - name: custom-values.yaml
-        path: path/to/custom-values.yaml  # Path to the file in the configuration repo
+  # # Overlay from the separate configuration repository
+  # sourceRepos:
+  #   - 'https://github.com/your-username/configurations.git'
+  # helm:
+  #   fileParameters:
+  #     - name: custom-values.yaml
+  #       path: path/to/custom-values.yaml  # Path to the file in the configuration repo

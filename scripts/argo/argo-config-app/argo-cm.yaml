@@ -9,3 +9,10 @@ data:
       sshPrivateKeySecret:
         name: my-github-ssh-key
         key: sshPrivateKey
+  configManagementPlugins: |
+    - name: helm-yq-merge
+      init:
+        command: [sh, -c]
+        args: ["git clone <repo-url> && git clone <config-repo-url>"]
+      generate:
+        command: ["/merge-and-apply.sh"]
