@@ -1,21 +1,25 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: example-helm-app
-  namespace: argocd
+  name: domain1.com
 spec:
   project: default
   source:
-    repoURL: 'https://your-helm-chart-repo-url.git'  # URL to the repository containing the Helm chart
-    targetRevision: HEAD  # or a specific tag/branch
-    path: path/to/helm/chart  # Path to the Helm chart in the repository
+    repoURL: 'https://github.com/openreplay/openreplay'
+    targetRevision: 'v1.0.0'  # Version tag of your Helm chart
+    path: path/to/your/chart
     helm:
-      valueFiles:  # List of value files in order of precedence
-        - values-production.yaml  # Override values file
+      valueFiles:
+        - vars.yaml  # Default values file in the Helm chart repo
   destination:
-    server: 'https://kubernetes.default.svc'  # Kubernetes cluster URL
-    namespace: target-namespace  # Namespace where the Helm chart will be deployed
+    server: 'https://kubernetes.default.svc'
+    namespace: your-namespace
   syncPolicy:
-    automated:  # Optional: Uncomment to enable automatic syncing
-      prune: true
-      selfHeal: true
+    automated: {}
+  # Overlay from the separate configuration repository
+  sourceRepos:
+    - 'https://github.com/your-username/configurations.git'
+  helm:
+    fileParameters:
+      - name: custom-values.yaml
+        path: path/to/custom-values.yaml  # Path to the file in the configuration repo
