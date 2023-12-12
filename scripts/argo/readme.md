@@ -6,6 +6,7 @@
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+sleep 60
 argocd admin initial-password -n argocd
 export argocd_server="172.18.0.4"
 argocd login $argocd_server
