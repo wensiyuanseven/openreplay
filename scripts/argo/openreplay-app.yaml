@@ -5,8 +5,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/openreplay/openreplay'
-    targetRevision: 'v1.0.0'  # Version tag of your Helm chart
+    repoURL: 'https://github.com/rjshrjndrn/argo-or-config'
+    targetRevision: 'HEAD'  # Version tag of your Helm chart
     path: path/to/your/chart
     helm:
       valueFiles:
