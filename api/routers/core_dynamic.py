@@ -77,7 +77,7 @@ def login_user(response: JSONResponse, data: schemas.UserLoginSchema = Body(...)
     }
     response = JSONResponse(content=content)
     response.set_cookie(key="refreshToken", value=refresh_token, path="/api/refresh",
-                        max_age=refresh_token_max_age, secure=True, httponly=True)
+                        max_age=refresh_token_max_age, secure=False, httponly=True, samesite="none")
     return response
 
 
@@ -94,7 +94,7 @@ def refresh_login(context: schemas.CurrentContext = Depends(OR_context)):
     content = {"jwt": r.get("jwt")}
     response = JSONResponse(content=content)
     response.set_cookie(key="refreshToken", value=r.get("refreshToken"), path="/api/refresh",
-                        max_age=r.pop("refreshTokenMaxAge"), secure=True, httponly=True)
+                        max_age=r.pop("refreshTokenMaxAge"), secure=False, httponly=True, samesite="none")
     return response
 
 
