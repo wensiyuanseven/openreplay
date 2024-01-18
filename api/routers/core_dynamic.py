@@ -42,7 +42,7 @@ if not tenants.tenants_exists_sync(use_pool=False):
         refresh_token_max_age = content.pop("refreshTokenMaxAge")
         response = JSONResponse(content=content)
         response.set_cookie(key="refreshToken", value=refresh_token, path="/api/refresh",
-                            max_age=refresh_token_max_age, secure=True, httponly=True)
+                            max_age=refresh_token_max_age, secure=False, httponly=True, samesite="none")
         return response
 
 
