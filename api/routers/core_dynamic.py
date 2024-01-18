@@ -41,8 +41,8 @@ if not tenants.tenants_exists_sync(use_pool=False):
         refresh_token = content.pop("refreshToken")
         refresh_token_max_age = content.pop("refreshTokenMaxAge")
         response = JSONResponse(content=content)
-        # response.set_cookie(key="refreshToken", value=refresh_token, path="/api/refresh",
-        #                     max_age=refresh_token_max_age, secure=False, httponly=True, samesite="none")
+        response.set_cookie(key="refreshToken", value=refresh_token, path="/api/refresh",
+                            max_age=refresh_token_max_age, secure=True, httponly=True, samesite="none")
         return response
 
 
@@ -76,8 +76,8 @@ def login_user(response: JSONResponse, data: schemas.UserLoginSchema = Body(...)
         }
     }
     response = JSONResponse(content=content)
-    # response.set_cookie(key="refreshToken", value=refresh_token, path="/api/refresh",
-    #                     max_age=refresh_token_max_age, secure=False, httponly=True, samesite="none")
+    response.set_cookie(key="refreshToken", value=refresh_token, path="/api/refresh",
+                        max_age=refresh_token_max_age, secure=True, httponly=True, samesite="none")
     return response
 
 
@@ -93,8 +93,8 @@ def refresh_login(context: schemas.CurrentContext = Depends(OR_context)):
     r = users.refresh(user_id=context.user_id)
     content = {"jwt": r.get("jwt")}
     response = JSONResponse(content=content)
-    # response.set_cookie(key="refreshToken", value=r.get("refreshToken"), path="/api/refresh",
-    #                     max_age=r.pop("refreshTokenMaxAge"), secure=False, httponly=True, samesite="none")
+    response.set_cookie(key="refreshToken", value=r.get("refreshToken"), path="/api/refresh",
+                        max_age=r.pop("refreshTokenMaxAge"), secure=True, httponly=True, samesite="none")
     return response
 
 
