@@ -74,6 +74,15 @@ class Login extends React.Component {
     }
   };
 
+  onSSOClick = () => {
+    const { params } = this.props;
+    if (params.get('iframe')) {
+      window.parent.location.href = "/api/sso/saml2?iFrame=true";
+    } else {
+      window.location.href = "/api/sso/saml2";
+    }
+  }
+
   write = ({ target: { value, name } }) => this.setState({ [name]: value });
 
   render() {
@@ -208,7 +217,7 @@ class Login extends React.Component {
               </div>
             </div>
             <div className={cn("flex items-center w-96 justify-center my-8", { 'hidden' : !authDetails.enforceSSO})}>
-              <a href="/api/sso/saml2" rel="noopener noreferrer">
+              <a href="#" rel="noopener noreferrer" onClick={onSSOClick}>
                 <Button variant="primary">{`Login with SSO ${
                   authDetails.ssoProvider ? `(${authDetails.ssoProvider})` : ''
                 }`}</Button>
