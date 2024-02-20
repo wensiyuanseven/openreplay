@@ -1,3 +1,7 @@
+# 13.0.0
+
+- updated graphql messages
+
 # 12.0.3
 
 - fixed scaling option for canvas (to ignore window.devicePixelRatio and always render the canvas as 1)

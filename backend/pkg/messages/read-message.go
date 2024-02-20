@@ -693,9 +693,9 @@ func DecodeNgRx(reader BytesReader) (Message, error) {
 	return msg, err
 }
 
-func DecodeGraphQL(reader BytesReader) (Message, error) {
+func DecodeGraphQLDeprecated(reader BytesReader) (Message, error) {
 	var err error = nil
-	msg := &GraphQL{}
+	msg := &GraphQLDeprecated{}
 	if msg.OperationKind, err = reader.ReadString(); err != nil {
 		return nil, err
 	}
@@ -706,9 +706,6 @@ func DecodeGraphQL(reader BytesReader) (Message, error) {
 		return nil, err
 	}
 	if msg.Response, err = reader.ReadString(); err != nil {
-		return nil, err
-	}
-	if msg.Duration, err = reader.ReadInt(); err != nil {
 		return nil, err
 	}
 	return msg, err
@@ -1413,6 +1410,27 @@ func DecodeTagTrigger(reader BytesReader) (Message, error) {
 	return msg, err
 }
 
+func DecodeGraphQL(reader BytesReader) (Message, error) {
+	var err error = nil
+	msg := &GraphQL{}
+	if msg.OperationKind, err = reader.ReadString(); err != nil {
+		return nil, err
+	}
+	if msg.OperationName, err = reader.ReadString(); err != nil {
+		return nil, err
+	}
+	if msg.Variables, err = reader.ReadString(); err != nil {
+		return nil, err
+	}
+	if msg.Response, err = reader.ReadString(); err != nil {
+		return nil, err
+	}
+	if msg.Duration, err = reader.ReadUint(); err != nil {
+		return nil, err
+	}
+	return msg, err
+}
+
 func DecodeIssueEvent(reader BytesReader) (Message, error) {
 	var err error = nil
 	msg := &IssueEvent{}
@@ -1962,7 +1980,7 @@ func ReadMessage(t uint64, reader BytesReader) (Message, error) {
 	case 47:
 		return DecodeNgRx(reader)
 	case 48:
-		return DecodeGraphQL(reader)
+		return DecodeGraphQLDeprecated(reader)
 	case 49:
 		return DecodePerformanceTrack(reader)
 	case 50:
@@ -2047,6 +2065,8 @@ func ReadMessage(t uint64, reader BytesReader) (Message, error) {
 		return DecodeCanvasNode(reader)
 	case 120:
 		return DecodeTagTrigger(reader)
+	case 121:
+		return DecodeGraphQL(reader)
 	case 125:
 		return DecodeIssueEvent(reader)
 	case 126:

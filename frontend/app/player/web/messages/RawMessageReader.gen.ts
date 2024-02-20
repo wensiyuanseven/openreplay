@@ -348,14 +348,12 @@ export default class RawMessageReader extends PrimitiveReader {
       const operationName = this.readString(); if (operationName === null) { return resetPointer() }
       const variables = this.readString(); if (variables === null) { return resetPointer() }
       const response = this.readString(); if (response === null) { return resetPointer() }
-      const duration = this.readInt(); if (duration === null) { return resetPointer() }
       return {
-        tp: MType.GraphQl,
+        tp: MType.GraphQlDeprecated,
         operationKind,
         operationName,
         variables,
         response,
-        duration,
       };
     }
 
@@ -748,6 +746,22 @@ export default class RawMessageReader extends PrimitiveReader {
       return {
         tp: MType.TagTrigger,
         tagId,
+      };
+    }
+
+    case 121: {
+      const operationKind = this.readString(); if (operationKind === null) { return resetPointer() }
+      const operationName = this.readString(); if (operationName === null) { return resetPointer() }
+      const variables = this.readString(); if (variables === null) { return resetPointer() }
+      const response = this.readString(); if (response === null) { return resetPointer() }
+      const duration = this.readUint(); if (duration === null) { return resetPointer() }
+      return {
+        tp: MType.GraphQl,
+        operationKind,
+        operationName,
+        variables,
+        response,
+        duration,
       };
     }
 

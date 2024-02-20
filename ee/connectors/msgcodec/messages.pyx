@@ -596,21 +596,19 @@ cdef class NgRx(PyMessage):
         self.duration = duration
 
 
-cdef class GraphQL(PyMessage):
+cdef class GraphQLDeprecated(PyMessage):
     cdef public int __id__
     cdef public str operation_kind
     cdef public str operation_name
     cdef public str variables
     cdef public str response
-    cdef public long duration
 
-    def __init__(self, str operation_kind, str operation_name, str variables, str response, long duration):
+    def __init__(self, str operation_kind, str operation_name, str variables, str response):
         self.__id__ = 48
         self.operation_kind = operation_kind
         self.operation_name = operation_name
         self.variables = variables
         self.response = response
-        self.duration = duration
 
 
 cdef class PerformanceTrack(PyMessage):
@@ -1203,6 +1201,23 @@ cdef class TagTrigger(PyMessage):
     def __init__(self, long tag_id):
         self.__id__ = 120
         self.tag_id = tag_id
+
+
+cdef class GraphQL(PyMessage):
+    cdef public int __id__
+    cdef public str operation_kind
+    cdef public str operation_name
+    cdef public str variables
+    cdef public str response
+    cdef public unsigned long duration
+
+    def __init__(self, str operation_kind, str operation_name, str variables, str response, unsigned long duration):
+        self.__id__ = 121
+        self.operation_kind = operation_kind
+        self.operation_name = operation_name
+        self.variables = variables
+        self.response = response
+        self.duration = duration
 
 
 cdef class IssueEvent(PyMessage):

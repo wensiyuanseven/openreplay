@@ -404,15 +404,14 @@ class NgRx(Message):
         self.duration = duration
 
 
-class GraphQL(Message):
+class GraphQLDeprecated(Message):
     __id__ = 48
 
-    def __init__(self, operation_kind, operation_name, variables, response, duration):
+    def __init__(self, operation_kind, operation_name, variables, response):
         self.operation_kind = operation_kind
         self.operation_name = operation_name
         self.variables = variables
         self.response = response
-        self.duration = duration
 
 
 class PerformanceTrack(Message):
@@ -814,6 +813,17 @@ class TagTrigger(Message):
 
     def __init__(self, tag_id):
         self.tag_id = tag_id
+
+
+class GraphQL(Message):
+    __id__ = 121
+
+    def __init__(self, operation_kind, operation_name, variables, response, duration):
+        self.operation_kind = operation_kind
+        self.operation_name = operation_name
+        self.variables = variables
+        self.response = response
+        self.duration = duration
 
 
 class IssueEvent(Message):
