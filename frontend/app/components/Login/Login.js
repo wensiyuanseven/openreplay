@@ -75,11 +75,10 @@ class Login extends React.Component {
   };
 
   onSSOClick = () => {
-    const { params } = this.props;
-    if (params.get('iframe')) {
-      window.parent.location.href = "/api/sso/saml2?iFrame=true";
+    if (window !== window.top) { // if in iframe
+      window.parent.location.href = `${window.location.origin}/api/sso/saml2?iFrame=true`;
     } else {
-      window.location.href = "/api/sso/saml2";
+      window.location.href = `${window.location.origin}/api/sso/saml2`;
     }
   }
 
@@ -180,7 +179,7 @@ class Login extends React.Component {
 
               <div className={cn(stl.sso, 'py-2 flex flex-col items-center')}>
                 {authDetails.sso ? (
-                  <a href="/api/sso/saml2" rel="noopener noreferrer">
+                  <a href="#" rel="noopener noreferrer" onClick={onSSOClick}>
                     <Button variant="text-primary" type="submit">
                       {`Login with SSO ${
                         authDetails.ssoProvider ? `(${authDetails.ssoProvider})` : ''
