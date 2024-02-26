@@ -179,7 +179,7 @@ class Login extends React.Component {
 
               <div className={cn(stl.sso, 'py-2 flex flex-col items-center')}>
                 {authDetails.sso ? (
-                  <a href="#" rel="noopener noreferrer" onClick={onSSOClick}>
+                  <a href="#" rel="noopener noreferrer" onClick={this.onSSOClick}>
                     <Button variant="text-primary" type="submit">
                       {`Login with SSO ${
                         authDetails.ssoProvider ? `(${authDetails.ssoProvider})` : ''
@@ -216,7 +216,7 @@ class Login extends React.Component {
               </div>
             </div>
             <div className={cn("flex items-center w-96 justify-center my-8", { 'hidden' : !authDetails.enforceSSO})}>
-              <a href="#" rel="noopener noreferrer" onClick={onSSOClick}>
+              <a href="#" rel="noopener noreferrer" onClick={this.onSSOClick}>
                 <Button variant="primary">{`Login with SSO ${
                   authDetails.ssoProvider ? `(${authDetails.ssoProvider})` : ''
                 }`}</Button>
