@@ -161,6 +161,8 @@ func (e *Router) startSessionHandlerIOS(w http.ResponseWriter, r *http.Request) 
 
 func (e *Router) pushMessagesHandlerIOS(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
+	bodySize := 0
+
 	sessionData, err := e.services.Tokenizer.ParseFromHTTPRequest(r)
 	if sessionData != nil {
 		r = r.WithContext(context.WithValue(r.Context(), "sessionID", fmt.Sprintf("%d", sessionData.ID)))
@@ -170,16 +172,26 @@ func (e *Router) pushMessagesHandlerIOS(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	bodyBytes, err := e.readBody(w, r, e.getBeaconSize(sessionData.ID))
+	if err != nil {
+		e.ResponseWithError(r.Context(), w, http.StatusRequestEntityTooLarge, err, startTime, r.URL.Path, bodySize)
+		return
+	}
+	bodySize = len(bodyBytes)
+
 	// Add sessionID and projectID to context
 	if info, err := e.services.Sessions.Get(sessionData.ID); err == nil {
 		r = r.WithContext(context.WithValue(r.Context(), "projectID", fmt.Sprintf("%d", info.ProjectID)))
 	}
 
 	e.pushMessages(w, r, sessionData.ID, e.cfg.TopicRawIOS)
+	e.ResponseOK(r.Context(), w, startTime, r.URL.Path, bodySize)
 }
 
 func (e *Router) pushLateMessagesHandlerIOS(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
+	bodySize := 0
+
 	sessionData, err := e.services.Tokenizer.ParseFromHTTPRequest(r)
 	if sessionData != nil {
 		r = r.WithContext(context.WithValue(r.Context(), "sessionID", fmt.Sprintf("%d", sessionData.ID)))
@@ -189,8 +201,22 @@ func (e *Router) pushLateMessagesHandlerIOS(w http.ResponseWriter, r *http.Reque
 		e.ResponseWithError(r.Context(), w, http.StatusUnauthorized, err, startTime, r.URL.Path, 0)
 		return
 	}
+
+	bodyBytes, err := e.readBody(w, r, e.getBeaconSize(sessionData.ID))
+	if err != nil {
+		e.ResponseWithError(r.Context(), w, http.StatusRequestEntityTooLarge, err, startTime, r.URL.Path, bodySize)
+		return
+	}
+	bodySize = len(bodyBytes)
+
+	// Add sessionID and projectID to context
+	if info, err := e.services.Sessions.Get(sessionData.ID); err == nil {
+		r = r.WithContext(context.WithValue(r.Context(), "projectID", fmt.Sprintf("%d", info.ProjectID)))
+	}
+
 	// Check timestamps here?
 	e.pushMessages(w, r, sessionData.ID, e.cfg.TopicRawIOS)
+	e.ResponseOK(r.Context(), w, startTime, r.URL.Path, bodySize)
 }
 
 func (e *Router) imagesUploadHandlerIOS(w http.ResponseWriter, r *http.Request) {

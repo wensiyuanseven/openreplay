@@ -32,6 +32,7 @@ func (e *Router) pushMessages(w http.ResponseWriter, r *http.Request, sessionID 
 		e.ResponseWithError(r.Context(), w, http.StatusInternalServerError, err, start, r.URL.Path, 0)
 		return
 	}
+	e.log.Info(r.Context(), "Received %d bytes: %v", len(buf), buf[:50])
 	if err := e.services.Producer.Produce(topicName, sessionID, buf); err != nil {
 		e.ResponseWithError(r.Context(), w, http.StatusInternalServerError, err, start, r.URL.Path, 0)
 		return
