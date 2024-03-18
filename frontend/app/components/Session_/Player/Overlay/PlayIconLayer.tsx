@@ -14,6 +14,12 @@ interface Props {
 function PlayIconLayer({ playing, togglePlay, notesEdit }: Props) {
   const [showPlayOverlayIcon, setShowPlayOverlayIcon] = useState(false);
 
+  const onKeyDown = (e: any) => {
+    if (getIsEdit() || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    if (e.key === ' ') {
+      togglePlayAnimated();
+    }
+  };
   useEffect(() => {
     // TODO Find a better way to do this
     document.addEventListener('keydown', onKeyDown);
@@ -24,13 +30,6 @@ function PlayIconLayer({ playing, togglePlay, notesEdit }: Props) {
   }, [notesEdit]);
 
   const getIsEdit = React.useCallback(() => notesEdit, [notesEdit])
-
-  const onKeyDown = (e: any) => {
-    if (getIsEdit() || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    if (e.key === ' ') {
-      togglePlayAnimated();
-    }
-  };
 
   const togglePlayAnimated = useCallback(() => {
     setShowPlayOverlayIcon(true);

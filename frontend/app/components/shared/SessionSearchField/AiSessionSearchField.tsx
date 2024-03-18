@@ -4,7 +4,7 @@ import { Input, Icon } from 'UI';
 import FilterModal from 'Shared/Filters/FilterModal';
 import { debounce } from 'App/utils';
 import { assist as assistRoute, isRoute } from 'App/routes';
-import { addFilterByKeyAndValue, fetchFilterSearch, edit } from 'Duck/search';
+import { addFilterByKeyAndValue, fetchFilterSearch, edit, clearSearch } from 'Duck/search';
 import {
   addFilterByKeyAndValue as liveAddFilterByKeyAndValue,
   fetchFilterSearch as liveFetchFilterSearch,
@@ -13,6 +13,7 @@ import { observer } from 'mobx-react-lite';
 import { useStore } from 'App/mstore';
 import { Segmented } from 'antd';
 import OutsideClickDetectingDiv from 'Shared/OutsideClickDetectingDiv';
+import { EnterOutlined, CloseOutlined } from '@ant-design/icons';
 
 const ASSIST_ROUTE = assistRoute();
 
@@ -21,7 +22,9 @@ interface Props {
   addFilterByKeyAndValue: (key: string, value: string) => void;
   liveAddFilterByKeyAndValue: (key: string, value: string) => void;
   liveFetchFilterSearch: any;
+  appliedFilter: any;
   edit: typeof edit;
+  clearSearch: typeof clearSearch;
 }
 
 function SessionSearchField(props: Props) {
@@ -43,8 +46,8 @@ function SessionSearchField(props: Props) {
 
   const onAddFilter = (filter: any) => {
     isLive
-      ? props.liveAddFilterByKeyAndValue(filter.key, filter.value)
-      : props.addFilterByKeyAndValue(filter.key, filter.value);
+    ? props.liveAddFilterByKeyAndValue(filter.key, filter.value)
+    : props.addFilterByKeyAndValue(filter.key, filter.value);
   };
 
   const onFocus = () => {
@@ -88,18 +91,32 @@ const AiSearchField = observer(({ edit }: Props) => {
   const debounceAiFetch = React.useCallback(debounce(aiFiltersStore.getSearchFilters, 1000), []);
 
   const onSearchChange = ({ target: { value } }: any) => {
-    if (value !== '' && value !== searchQuery) {
-      setSearchQuery(value);
-      debounceAiFetch(value);
+    setSearchQuery(value);
+  };
+
+  const fetchResults = () => {
+    if (searchQuery) {
+      debounceAiFetch(searchQuery);
     }
   };
 
   React.useEffect(() => {
     if (aiFiltersStore.filtersSetKey !== 0) {
-      console.log('updating filters', aiFiltersStore.filters, aiFiltersStore.filtersSetKey);
-      edit(aiFiltersStore.filters)
+  const handleKeyDown = (event: any) => {
+    if (event.key === 'Enter') {
+      fetchResults();
     }
-  }, [aiFiltersStore.filters, aiFiltersStore.filtersSetKey])
+  };
+
+  const clearAll = () => {
+    clearSearch()
+    setSearchQuery('');
+  }
+
+      console.log('updating filters', aiFiltersStore.filters, aiFiltersStore.filtersSetKey);
+      edit(aiFiltersStore.filters);
+    }
+  }, [aiFiltersStore.filters, aiFiltersStore.filtersSetKey]);
 
   return (
     <div className={'w-full'}>
@@ -107,14 +124,23 @@ const AiSearchField = observer(({ edit }: Props) => {
         onChange={onSearchChange}
         placeholder={'E.g., "Sessions with login issues this week"'}
         id="search"
-        type="search"
+        onKeyDown={handleKeyDown}
         value={searchQuery}
         autoComplete="off"
         className="text-lg placeholder-lg !border-0 rounded-r-lg focus:!border-0 focus:ring-0"
       />
     </div>
+        leadingButton={
+          searchQuery !== '' ? (
+            <div className={'h-full flex items-center cursor-pointer'} onClick={hasFilters ? clearAll : fetchResults}>
+              <div className={'px-2 py-1 hover:bg-active-blue rounded mr-2'}>
+                {hasFilters ? <CloseOutlined /> : <EnterOutlined />}
+              </div>
+            </div>
+          ) : null
+        }
   );
-})
+});
 
 function AiSessionSearchField(props: Props) {
   const [tab, setTab] = useState('search');
@@ -181,10 +207,13 @@ const gradientBoxUnfocused = {
   width: '100%',
 };
 
-export default connect(null, {
+export default connect((state: any) => ({
+  appliedFilter: state.getIn(['search', 'instance']),
+}), {
   addFilterByKeyAndValue,
   fetchFilterSearch,
   liveFetchFilterSearch,
   liveAddFilterByKeyAndValue,
   edit,
 })(observer(AiSessionSearchField));
+  clearSearch,
