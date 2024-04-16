@@ -107,7 +107,12 @@ def get_replay(project_id, session_id, context: schemas.CurrentContext, full_dat
         query = cur.mogrify(
             f"""\
             SELECT
-                s.*,
+                s.session_id, s.project_id, s.tracker_version, s.start_ts, s.timezone, s.duration, s.rev_id, 
+                s.platform, s.user_id, s.user_anonymous_id, s.user_uuid, s.user_os, s.user_os_version, s.user_browser, 
+                s.user_browser_version, s.user_device, s.user_device_type, s.user_device_memory_size, s.user_device_heap_size,
+                s.user_country, s.user_city, s.user_state, s.pages_count, s.events_count, s.issue_types, s.referrer,
+                s.has_ut_test, s.screen_width, s.screen_height, s.metadata_1, s.metadata_2, s.metadata_3, s.metadata_4, 
+                s.metadata_5, s.metadata_6, s.metadata_7, s.metadata_8, s.metadata_9, s.metadata_10, 
                 s.session_id::text AS session_id,
                 (SELECT project_key FROM public.projects WHERE project_id = %(project_id)s LIMIT 1) AS project_key
                 {"," if len(extra_query) > 0 else ""}{",".join(extra_query)}
@@ -144,7 +149,6 @@ def get_replay(project_id, session_id, context: schemas.CurrentContext, full_dat
                 data['metadata'] = __group_metadata(project_metadata=data.pop("projectMetadata"), session=data)
                 data['live'] = live and assist.is_live(project_id=project_id, session_id=session_id,
                                                        project_key=data["projectKey"])
-            data["inDB"] = True
             return data
         elif live:
             return assist.get_live_session_by_id(project_id=project_id, session_id=session_id)
