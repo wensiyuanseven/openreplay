@@ -1,13 +1,13 @@
 ignore:
-  - "**/*/*.gen.ts"
-  - "**/*/coverage.xml"
-  - "**/*/coverage-final.json"
-  - "**/*/coverage/**"
-  - "**/*/node_modules/**"
-  - "**/*/dist/**"
-  - "**/*/build/**"
-  - "**/*/.test.*"
-  - "**/*/version.ts"
+  - '**/*/*.gen.ts'
+  - '**/*/coverage.xml'
+  - '**/*/coverage-final.json'
+  - '**/*/coverage/**'
+  - '**/*/node_modules/**'
+  - '**/*/dist/**'
+  - '**/*/build/**'
+  - '**/*/.test.*'
+  - '**/*/version.ts'
 review:
   poem: false
   review_status: false

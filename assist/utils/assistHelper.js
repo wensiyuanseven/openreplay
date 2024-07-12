@@ -1,10 +1,10 @@
 const jwt = require('jsonwebtoken');
 const uaParser = require('ua-parser-js');
-const {geoip} = require('./geoIP');
-const {extractPeerId} = require('./helper');
-const {logger} = require('./logger');
+const { geoip } = require('./geoIP');
+const { extractPeerId } = require('./helper');
+const { logger } = require('./logger');
 
-const IDENTITIES = {agent: 'agent', session: 'session'};
+const IDENTITIES = { agent: 'agent', session: 'session' };
 const EVENTS_DEFINITION = {
     listen: {
         UPDATE_EVENT: "UPDATE_SESSION", // tab become active/inactive, page title change, changed session object (rare case), call start/end
@@ -61,7 +61,7 @@ const extractSessionInfo = function (socket) {
         logger.debug(`received headers: ${socket.handshake.headers}`);
 
         socket.handshake.query.sessionInfo = JSON.parse(socket.handshake.query.sessionInfo);
-        socket.handshake.query.sessionInfo = {...BASE_sessionInfo, ...socket.handshake.query.sessionInfo};
+        socket.handshake.query.sessionInfo = { ...BASE_sessionInfo, ...socket.handshake.query.sessionInfo };
 
         let ua = uaParser(socket.handshake.headers['user-agent']);
         socket.handshake.query.sessionInfo.userOs = ua.os.name || null;
@@ -116,7 +116,7 @@ function errorHandler(listenerName, error) {
 }
 
 function generateAccessToken(payload) {
-    return jwt.sign(payload, process.env.ASSIST_JWT_SECRET, {expiresIn: process.env.ASSIST_JWT_EXPIRATION || '30m'});
+    return jwt.sign(payload, process.env.ASSIST_JWT_SECRET, { expiresIn: process.env.ASSIST_JWT_EXPIRATION || '30m' });
 }
 
 const JWT_TOKEN_PREFIX = "Bearer ";
@@ -136,7 +136,7 @@ function check(socket, next) {
                 logger.debug(err);
                 return next(new Error('Authentication error'));
             }
-            const {projectKey, sessionId} = extractPeerId(socket.handshake.query.peerId);
+            const { projectKey, sessionId } = extractPeerId(socket.handshake.query.peerId);
             if (!projectKey || !sessionId) {
                 logger.debug(`Missing attribute: projectKey:${projectKey}, sessionId:${sessionId}`);
                 return next(new Error('Authentication error'));
@@ -161,5 +161,5 @@ module.exports = {
     IDENTITIES,
     socketConnexionTimeout,
     errorHandler,
-    authorizer: {generateAccessToken, check}
+    authorizer: { generateAccessToken, check }
 };

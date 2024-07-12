@@ -1,8 +1,21 @@
+third-party.md 文件通常用于列出项目中使用的第三方库、工具和服务。这个文件可以帮助开发者和用户了解项目依赖的外部资源，并确保符合开源许可证和法律要求。该文件的常见内容包括第三方库的名称、版本、许可证类型以及使用目的。
+
+third-party.md 文件的主要目的是提供透明度，确保项目的依赖关系清晰，并遵守相关的开源许可证要求。这对于开源项目尤为重要，因为开源社区高度重视许可证的合规性和透明度。
+
+可以使用自动化工具来帮助收集依赖信息及其许可证。例如：
+JavaScript/TypeScript:
+  npx license-checker --json > dependencies.json
+Python:
+  pip-licenses --format=json > dependencies.json
+
+
+## 许可证（截至 2024 年 3 月 28 日）
+以下是 OpenReplay 软件中使用的依赖项列表。许可证可能会因版本而异，因此请保持此列表与您使用的每个新库保持同步更新。
+
 ## Licenses (as of Mars 28, 2024)
 
 Below is the list of dependencies used in OpenReplay software. Licenses may change between versions, so please keep this
 up to date with every new library you use.
-
 | Library                    | License            | Scope          |
 |----------------------------|--------------------|----------------|
 | btcutil                    | IST                | Go             |

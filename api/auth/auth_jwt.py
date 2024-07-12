@@ -1,5 +1,5 @@
-import datetime
-import logging
+import datetime # 导入 datetime 模块，用于处理日期和时间
+import logging # 导入 logging 模块，用于记录日志
 from typing import Optional
 
 from decouple import config
@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException
 import schemas
 from chalicelib.core import authorizers, users
 
+# 获取当前文件的日志记录器
 logger = logging.getLogger(__name__)
 
 
