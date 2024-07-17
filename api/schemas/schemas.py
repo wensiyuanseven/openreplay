@@ -6,12 +6,18 @@ from pydantic import field_validator, model_validator, computed_field
 
 from chalicelib.utils.TimeUTC import TimeUTC
 from .overrides import BaseModel, Enum, ORUnion
+# 斜杠 \ 被用来将一行代码分成两行，但在语法上它们被视为单一的语句 这在需要导入多个对象时很有用，因为可以避免一行代码过长而难以阅读。
 from .transformers_validators import transform_email, remove_whitespace, remove_duplicate_values, single_to_list, \
     force_is_event, NAME_PATTERN, int_to_string
 from pydantic.functional_validators import BeforeValidator
 
+# 将传入的 values 中的 "type" 字段根据预定义的映射转换成相应的枚举值或字符串。
+
+# @classmethod
+
 
 def transform_old_filter_type(cls, values):
+    # 如果传入的 values 字典中没有 "type" 键（即 values["type"] 是 None），则直接返回原始的 values 字典，不进行转换
     if values.get("type") is None:
         return values
     values["type"] = {
@@ -64,14 +70,18 @@ def transform_old_filter_type(cls, values):
     return values
 
 
+# Field 是一个函数，用于设置字段的默认值、别名、描述、验证规则等。
 class _GRecaptcha(BaseModel):
-    g_recaptcha_response: Optional[str] = Field(default=None, alias='g-recaptcha-response')
+    g_recaptcha_response: Optional[str] = Field(
+        # 别名
+        default=None, alias='g-recaptcha-response')
 
 
 class UserLoginSchema(_GRecaptcha):
-    email: EmailStr = Field(...)
+    email: EmailStr = Field(...)  # 必填
     password: SecretStr = Field(...)
-
+    # 这段代码将 transform_email 函数作为 email 字段的验证器，并指定其在字段值被解析前运行。
+    # 它将结果存储在 _transform_email 中，这通常用于命名以便遵循代码规范，但 _transform_email 本身并不会被直接调用
     _transform_email = field_validator('email', mode='before')(transform_email)
 
 
@@ -79,8 +89,11 @@ class UserSignupSchema(UserLoginSchema):
     fullname: str = Field(..., min_length=1, pattern=NAME_PATTERN)
     organizationName: str = Field(..., min_length=1, pattern=NAME_PATTERN)
 
-    _transform_fullname = field_validator('fullname', mode='before')(remove_whitespace)
-    _transform_organizationName = field_validator('organizationName', mode='before')(remove_whitespace)
+    _transform_fullname = field_validator(
+        'fullname', mode='before')(remove_whitespace)
+
+    _transform_organizationName = field_validator(
+        'organizationName', mode='before')(remove_whitespace)
 
 
 class EditAccountSchema(BaseModel):
@@ -89,7 +102,8 @@ class EditAccountSchema(BaseModel):
     opt_out: Optional[bool] = Field(default=None)
 
     _transform_name = field_validator('name', mode='before')(remove_whitespace)
-    _transform_tenantName = field_validator('tenantName', mode='before')(remove_whitespace)
+    _transform_tenantName = field_validator(
+        'tenantName', mode='before')(remove_whitespace)
 
 
 class ForgetPasswordPayloadSchema(_GRecaptcha):
@@ -104,10 +118,13 @@ class EditUserPasswordSchema(BaseModel):
 
 
 class CreateProjectSchema(BaseModel):
+    # 参数指定了一个正则表达式模式 NAME_PATTERN，用来限制 name 字段的内容
     name: str = Field(default="my first project", pattern=NAME_PATTERN)
     platform: Literal["web", "ios"] = Field(default="web")
 
     _transform_name = field_validator('name', mode='before')(remove_whitespace)
+
+   # Field(..., gt=0) 表示这是一个必填字段（... 表示该字段在实例化时是必须的）并且值必须大于0（gt=0）
 
 
 class CurrentProjectContext(BaseModel):
@@ -245,7 +262,8 @@ class AssignmentSchema(BaseModel):
     title: str = Field(...)
     issue_type: str = Field(...)
 
-    _transform_title = field_validator('title', mode='before')(remove_whitespace)
+    _transform_title = field_validator(
+        'title', mode='before')(remove_whitespace)
 
 
 class CommentAssignmentSchema(BaseModel):
@@ -428,7 +446,8 @@ class AlertDetectionMethod(str, Enum):
 class AlertSchema(BaseModel):
     name: str = Field(..., pattern=NAME_PATTERN)
     detection_method: AlertDetectionMethod = Field(...)
-    change: Optional[AlertDetectionType] = Field(default=AlertDetectionType.change)
+    change: Optional[AlertDetectionType] = Field(
+        default=AlertDetectionType.change)
     description: Optional[str] = Field(default=None)
     options: _AlertOptionSchema = Field(...)
     query: _AlertQuerySchema = Field(...)
@@ -488,6 +507,8 @@ class PerformanceEventType(str, Enum):
     location_avg_memory_usage = "avgMemoryUsage"
     fetch_failed = "fetchFailed"
     # fetch_duration = "FETCH_DURATION"
+
+# 枚举类是一种特殊的数据类型，用于定义一组具有名字的常量
 
 
 class FilterType(str, Enum):
@@ -621,8 +642,10 @@ class SessionSearchEventSchema2(BaseModel):
     sourceOperator: Optional[MathOperator] = Field(default=None)
     filters: Optional[List[RequestGraphqlFilterSchema]] = Field(default=[])
 
-    _remove_duplicate_values = field_validator('value', mode='before')(remove_duplicate_values)
-    _single_to_list_values = field_validator('value', mode='before')(single_to_list)
+    _remove_duplicate_values = field_validator(
+        'value', mode='before')(remove_duplicate_values)
+    _single_to_list_values = field_validator(
+        'value', mode='before')(single_to_list)
     _transform = model_validator(mode='before')(transform_old_filter_type)
 
     @model_validator(mode='after')
@@ -636,9 +659,11 @@ class SessionSearchEventSchema2(BaseModel):
             assert values.sourceOperator is not None, \
                 "sourceOperator should not be null for PerformanceEventType"
             assert "source" in values, f"source is required for {values.type}"
-            assert isinstance(values.source, list), f"source of type list is required for {values.type}"
+            assert isinstance(
+                values.source, list), f"source of type list is required for {values.type}"
             for c in values["source"]:
-                assert isinstance(c, int), f"source value should be of type int for {values.type}"
+                assert isinstance(
+                    c, int), f"source value should be of type int for {values.type}"
         elif values.type == EventType.error and values.source is None:
             values.source = [ErrorSource.js_exception]
         elif values.type == EventType.request_details:
@@ -661,9 +686,11 @@ class SessionSearchFilterSchema(BaseModel):
     operator: Union[SearchEventOperator, MathOperator] = Field(...)
     source: Optional[Union[ErrorSource, str]] = Field(default=None)
 
-    _remove_duplicate_values = field_validator('value', mode='before')(remove_duplicate_values)
+    _remove_duplicate_values = field_validator(
+        'value', mode='before')(remove_duplicate_values)
     _transform = model_validator(mode='before')(transform_old_filter_type)
-    _single_to_list_values = field_validator('value', mode='before')(single_to_list)
+    _single_to_list_values = field_validator(
+        'value', mode='before')(single_to_list)
 
     @model_validator(mode='before')
     def _transform_data(cls, values):
@@ -687,26 +714,31 @@ class SessionSearchFilterSchema(BaseModel):
                 if IssueType.has_value(v):
                     v = IssueType(v)
                 else:
-                    raise ValueError(f"value should be of type IssueType for {values.type} filter")
+                    raise ValueError(
+                        f"value should be of type IssueType for {values.type} filter")
         elif values.type == FilterType.platform:
             for v in values.value:
                 if PlatformType.has_value(v):
                     v = PlatformType(v)
                 else:
-                    raise ValueError(f"value should be of type PlatformType for {values.type} filter")
+                    raise ValueError(
+                        f"value should be of type PlatformType for {values.type} filter")
         elif values.type == FilterType.events_count:
             if values.operator in MathOperator.has_value(values.operator):
                 values.operator = MathOperator(values.operator)
             else:
-                raise ValueError(f"operator should be of type MathOperator for {values.type} filter")
+                raise ValueError(
+                    f"operator should be of type MathOperator for {values.type} filter")
 
             for v in values.value:
-                assert isinstance(v, int), f"value should be of type int for {values.type} filter"
+                assert isinstance(
+                    v, int), f"value should be of type int for {values.type} filter"
         else:
             if SearchEventOperator.has_value(values.operator):
                 values.operator = SearchEventOperator(values.operator)
             else:
-                raise ValueError(f"operator should be of type SearchEventOperator for {values.type} filter")
+                raise ValueError(
+                    f"operator should be of type SearchEventOperator for {values.type} filter")
 
         return values
 
@@ -730,16 +762,18 @@ def add_missing_is_event(values: dict):
 
 
 # this type is created to allow mixing events&filters and specifying a discriminator
-GroupedFilterType = Annotated[Union[SessionSearchFilterSchema, SessionSearchEventSchema2], \
-    Field(discriminator='is_event'), BeforeValidator(add_missing_is_event)]
+GroupedFilterType = Annotated[Union[SessionSearchFilterSchema, SessionSearchEventSchema2],
+                              Field(discriminator='is_event'), BeforeValidator(add_missing_is_event)]
 
 
 class SessionsSearchPayloadSchema(_TimedSchema, _PaginatedSchema):
-    events: List[SessionSearchEventSchema2] = Field(default=[], doc_hidden=True)
+    events: List[SessionSearchEventSchema2] = Field(
+        default=[], doc_hidden=True)
     filters: List[GroupedFilterType] = Field(default=[])
     sort: str = Field(default="startTs")
     order: SortOrderType = Field(default=SortOrderType.desc)
-    events_order: Optional[SearchEventOrder] = Field(default=SearchEventOrder._then)
+    events_order: Optional[SearchEventOrder] = Field(
+        default=SearchEventOrder._then)
     group_by_user: bool = Field(default=False)
     bookmarked: bool = Field(default=False)
 
@@ -847,7 +881,8 @@ class PathAnalysisSubFilterSchema(BaseModel):
     type: ProductAnalyticsSelectedEventType = Field(...)
     operator: Union[SearchEventOperator, ClickEventExtraOperator] = Field(...)
 
-    _remove_duplicate_values = field_validator('value', mode='before')(remove_duplicate_values)
+    _remove_duplicate_values = field_validator(
+        'value', mode='before')(remove_duplicate_values)
 
     @model_validator(mode="before")
     def __force_is_event(cls, values):
@@ -858,26 +893,30 @@ class PathAnalysisSubFilterSchema(BaseModel):
 class _ProductAnalyticsFilter(BaseModel):
     is_event: Literal[False] = False
     type: FilterType
-    operator: Union[SearchEventOperator, ClickEventExtraOperator, MathOperator] = Field(...)
+    operator: Union[SearchEventOperator,
+                    ClickEventExtraOperator, MathOperator] = Field(...)
     value: List[Union[IssueType, PlatformType, int, str]] = Field(...)
     source: Optional[str] = Field(default=None)
 
-    _remove_duplicate_values = field_validator('value', mode='before')(remove_duplicate_values)
+    _remove_duplicate_values = field_validator(
+        'value', mode='before')(remove_duplicate_values)
 
 
 class _ProductAnalyticsEventFilter(BaseModel):
     is_event: Literal[True] = True
     type: ProductAnalyticsSelectedEventType
-    operator: Union[SearchEventOperator, ClickEventExtraOperator, MathOperator] = Field(...)
+    operator: Union[SearchEventOperator,
+                    ClickEventExtraOperator, MathOperator] = Field(...)
     # TODO: support session metadata filters
     value: List[Union[IssueType, PlatformType, int, str]] = Field(...)
 
-    _remove_duplicate_values = field_validator('value', mode='before')(remove_duplicate_values)
+    _remove_duplicate_values = field_validator(
+        'value', mode='before')(remove_duplicate_values)
 
 
 # this type is created to allow mixing events&filters and specifying a discriminator for PathAnalysis series filter
-ProductAnalyticsFilter = Annotated[Union[_ProductAnalyticsFilter, _ProductAnalyticsEventFilter], \
-    Field(discriminator='is_event')]
+ProductAnalyticsFilter = Annotated[Union[_ProductAnalyticsFilter, _ProductAnalyticsEventFilter],
+                                   Field(discriminator='is_event')]
 
 
 class PathAnalysisSchema(_TimedSchema, _PaginatedSchema):
@@ -885,8 +924,8 @@ class PathAnalysisSchema(_TimedSchema, _PaginatedSchema):
     filters: List[ProductAnalyticsFilter] = Field(default=[])
     type: Optional[str] = Field(default=None)
 
-    _transform_filters = field_validator('filters', mode='before') \
-        (force_is_event(events_enum=[ProductAnalyticsSelectedEventType]))
+    _transform_filters = field_validator('filters', mode='before')(
+        force_is_event(events_enum=[ProductAnalyticsSelectedEventType]))
 
 
 class MobileSignPayloadSchema(BaseModel):
@@ -1035,10 +1074,11 @@ class CardSessionsSchema(_TimedSchema, _PaginatedSchema):
     filters: List[GroupedFilterType] = Field(default=[])
 
     # Used mainly for PathAnalysis, and could be used by other cards
-    hide_excess: Optional[bool] = Field(default=False, description="Hide extra values")
+    hide_excess: Optional[bool] = Field(
+        default=False, description="Hide extra values")
 
-    _transform_filters = field_validator('filters', mode='before') \
-        (force_is_event(events_enum=[EventType, PerformanceEventType]))
+    _transform_filters = field_validator('filters', mode='before')(
+        force_is_event(events_enum=[EventType, PerformanceEventType]))
 
     @model_validator(mode="before")
     def remove_wrong_filter_values(cls, values):
@@ -1081,7 +1121,8 @@ class CardConfigSchema(BaseModel):
 class __CardSchema(CardSessionsSchema):
     name: Optional[str] = Field(default=None)
     is_public: bool = Field(default=True)
-    default_config: CardConfigSchema = Field(default=CardConfigSchema(), alias="config")
+    default_config: CardConfigSchema = Field(
+        default=CardConfigSchema(), alias="config")
     thumbnail: Optional[str] = Field(default=None)
     metric_format: Optional[MetricFormatType] = Field(default=None)
     view_type: Any
@@ -1109,7 +1150,8 @@ class __CardSchema(CardSessionsSchema):
 
 class CardTimeSeries(__CardSchema):
     metric_type: Literal[MetricType.timeseries]
-    metric_of: MetricOfTimeseries = Field(default=MetricOfTimeseries.session_count)
+    metric_of: MetricOfTimeseries = Field(
+        default=MetricOfTimeseries.session_count)
     view_type: MetricTimeseriesViewType
 
     @model_validator(mode="before")
@@ -1161,7 +1203,8 @@ class CardFunnel(__CardSchema):
 
 class CardErrors(__CardSchema):
     metric_type: Literal[MetricType.errors]
-    metric_of: MetricOfErrors = Field(default=MetricOfErrors.impacted_sessions_by_js_errors)
+    metric_of: MetricOfErrors = Field(
+        default=MetricOfErrors.impacted_sessions_by_js_errors)
     view_type: MetricOtherViewType = Field(...)
 
     @model_validator(mode="before")
@@ -1193,7 +1236,8 @@ class CardPerformance(__CardSchema):
 
 class CardResources(__CardSchema):
     metric_type: Literal[MetricType.resources]
-    metric_of: MetricOfResources = Field(default=MetricOfResources.missing_resources)
+    metric_of: MetricOfResources = Field(
+        default=MetricOfResources.missing_resources)
     view_type: MetricOtherViewType = Field(...)
 
     @model_validator(mode="before")
@@ -1244,7 +1288,8 @@ class MetricOfInsights(str, Enum):
 
 class CardInsights(__CardSchema):
     metric_type: Literal[MetricType.insights]
-    metric_of: MetricOfInsights = Field(default=MetricOfInsights.issue_categories)
+    metric_of: MetricOfInsights = Field(
+        default=MetricOfInsights.issue_categories)
     view_type: MetricOtherViewType = Field(...)
 
     @model_validator(mode="before")
@@ -1259,7 +1304,8 @@ class CardInsights(__CardSchema):
 
     @model_validator(mode='after')
     def restrictions(cls, values):
-        raise ValueError(f"metricType:{MetricType.insights} not supported yet.")
+        raise ValueError(
+            f"metricType:{MetricType.insights} not supported yet.")
 
 
 class CardPathAnalysisSeriesSchema(CardSeriesSchema):
@@ -1278,7 +1324,8 @@ class CardPathAnalysisSeriesSchema(CardSeriesSchema):
 
 class CardPathAnalysis(__CardSchema):
     metric_type: Literal[MetricType.pathAnalysis]
-    metric_of: MetricOfPathAnalysis = Field(default=MetricOfPathAnalysis.session_count)
+    metric_of: MetricOfPathAnalysis = Field(
+        default=MetricOfPathAnalysis.session_count)
     view_type: MetricOtherViewType = Field(...)
     metric_value: List[ProductAnalyticsSelectedEventType] = Field(default=[])
     density: int = Field(default=4, ge=2, le=10)
@@ -1324,7 +1371,8 @@ class CardPathAnalysis(__CardSchema):
             values.start_point) <= 1, f"Only 1 startPoint with multiple values OR 1 endPoint with multiple values is allowed"
         for t in exclude_values:
             for v in t:
-                assert v not in s_e_values.get(t, []), f"startPoint and endPoint cannot be excluded, value: {v}"
+                assert v not in s_e_values.get(
+                    t, []), f"startPoint and endPoint cannot be excluded, value: {v}"
 
         return values
 
@@ -1335,7 +1383,8 @@ __cards_union_base = Union[
     CardErrors, CardPerformance, CardResources,
     CardWebVital, CardClickMap,
     CardPathAnalysis]
-CardSchema = ORUnion(Union[__cards_union_base, CardInsights], discriminator='metric_type')
+CardSchema = ORUnion(
+    Union[__cards_union_base, CardInsights], discriminator='metric_type')
 
 
 class UpdateCardStatusSchema(BaseModel):
@@ -1414,8 +1463,8 @@ class LiveSessionSearchFilterSchema(BaseModel):
     value: Union[List[str], str] = Field(...)
     type: LiveFilterType = Field(...)
     source: Optional[str] = Field(default=None)
-    operator: Literal[SearchEventOperator._is, \
-        SearchEventOperator._contains] = Field(default=SearchEventOperator._contains)
+    operator: Literal[SearchEventOperator._is,
+                      SearchEventOperator._contains] = Field(default=SearchEventOperator._contains)
 
     transform = model_validator(mode='before')(transform_old_filter_type)
 
@@ -1423,7 +1472,8 @@ class LiveSessionSearchFilterSchema(BaseModel):
     def __validator(cls, values):
         if values.type is not None and values.type == LiveFilterType.metadata:
             assert values.source is not None, "source should not be null for METADATA type"
-            assert len(values.source) > 0, "source should not be empty for METADATA type"
+            assert len(
+                values.source) > 0, "source should not be empty for METADATA type"
         return values
 
 
@@ -1514,7 +1564,8 @@ class _ClickMapSearchEventRaw(SessionSearchEventSchema2):
 
 class ClickMapSessionsSearch(SessionsSearchPayloadSchema):
     events: Optional[List[_ClickMapSearchEventRaw]] = Field(default=[])
-    filters: List[Union[SessionSearchFilterSchema, _ClickMapSearchEventRaw]] = Field(default=[])
+    filters: List[Union[SessionSearchFilterSchema,
+                        _ClickMapSearchEventRaw]] = Field(default=[])
 
     @model_validator(mode="before")
     def __transform(cls, values):
@@ -1528,9 +1579,11 @@ class ClickMapSessionsSearch(SessionsSearchPayloadSchema):
 
 
 class ClickMapFilterSchema(BaseModel):
-    value: List[Literal[IssueType.click_rage, IssueType.dead_click]] = Field(default=[])
+    value: List[Literal[IssueType.click_rage,
+                        IssueType.dead_click]] = Field(default=[])
     type: Literal[FilterType.issue] = Field(...)
-    operator: Literal[SearchEventOperator._is, MathOperator._equal] = Field(...)
+    operator: Literal[SearchEventOperator._is,
+                      MathOperator._equal] = Field(...)
 
 
 class GetHeatmapPayloadSchema(_TimedSchema):
@@ -1553,7 +1606,8 @@ class FeatureFlagConditionFilterSchema(BaseModel):
     value: List[str] = Field(default=[], min_length=1)
     operator: Union[SearchEventOperator, MathOperator] = Field(...)
     source: Optional[str] = Field(default=None)
-    sourceOperator: Optional[Union[SearchEventOperator, MathOperator]] = Field(default=None)
+    sourceOperator: Optional[Union[SearchEventOperator,
+                                   MathOperator]] = Field(default=None)
 
     @model_validator(mode="before")
     def __force_is_event(cls, values):
@@ -1598,13 +1652,14 @@ class FeatureFlagSchema(BaseModel):
 
 class ModuleStatus(BaseModel):
     module: Literal["assist", "notes", "bug-reports",
-    "offline-recordings", "alerts", "assist-statts", "recommendations", "feature-flags"] = Field(...,
-                                                                                                 description="Possible values: assist, notes, bug-reports, offline-recordings, alerts, assist-statts, recommendations, feature-flags")
+                    "offline-recordings", "alerts", "assist-statts", "recommendations", "feature-flags"] = Field(...,
+                                                                                                                 description="Possible values: assist, notes, bug-reports, offline-recordings, alerts, assist-statts, recommendations, feature-flags")
     status: bool = Field(...)
 
 
 class TagUpdate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100, pattern='^[a-zA-Z0-9\" -]*$')
+    name: str = Field(..., min_length=1, max_length=100,
+                      pattern='^[a-zA-Z0-9\" -]*$')
 
 
 class TagCreate(TagUpdate):

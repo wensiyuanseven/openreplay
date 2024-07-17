@@ -25,6 +25,7 @@ class BaseModel(_BaseModel):
 
 
 class Enum(_Enum):
+    # 表示下面的 has_value 方法是一个类方法，可以通过类本身调用，而不是实例调用。
     @classmethod
     def has_value(cls, value) -> bool:
         return value in cls._value2member_map_
