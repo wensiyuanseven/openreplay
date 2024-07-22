@@ -1,19 +1,22 @@
 # Keep this version to not have conflicts between requests and boto3
-urllib3==1.26.16
-requests==2.32.2
-boto3==1.34.113
-pyjwt==2.8.0
-psycopg2-binary==2.9.9
-psycopg[pool,binary]==3.1.19
-elasticsearch==8.13.2
-jira==3.8.0
+urllib3==1.26.16 #HTTP 客户端库，通常与 requests 和 boto3 一起使用。
+requests==2.32.2 #简单易用的 HTTP 请求库。
+boto3==1.34.113 #与 AWS 服务交互的库。
+pyjwt==2.8.0 #用于生成和验证 JSON Web Token (JWT)。
+psycopg2-binary==2.9.9 #PostgreSQL 数据库适配器
+psycopg[pool,binary]==3.1.19 #PostgreSQL 数据库适配器
+elasticsearch==8.13.2 #与 Elasticsearch 搜索引擎交互。
+jira==3.8.0 #与 JIRA 项目管理工具交互。
 
 
 
-fastapi==0.111.0
-uvicorn[standard]==0.29.0
-python-decouple==3.8
-pydantic[email]==2.3.0
-apscheduler==3.10.4
+fastapi==0.111.0 #现代 Web 框架，用于构建快速 Web API。
+uvicorn[standard]==0.29.0 #ASGI 服务器，用于运行 FastAPI 等异步 Web 框架。
+python-decouple==3.8 #简化配置管理。
+pydantic[email]==2.3.0 #数据验证和设置管理，包含电子邮件支持。
+apscheduler==3.10.4 # 任务调度库。 
 
 redis==5.0.4
+
+# pip install -r requirements.txt
+

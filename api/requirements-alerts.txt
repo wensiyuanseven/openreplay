@@ -4,7 +4,7 @@ requests==2.32.2
 boto3==1.34.113
 pyjwt==2.8.0
 psycopg2-binary==2.9.9
-psycopg[pool,binary]==3.1.19
+psycopg[pool,binary]==3.1.19   #安装附加模块
 elasticsearch==8.13.2
 jira==3.8.0
 
