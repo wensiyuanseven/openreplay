@@ -1,3 +1,4 @@
+# 文件的整体目的是定期检查和报告系统中各个服务和组件的运行状况，以确保整个应用程序生态系统的健康和稳定运行。
 from urllib.parse import urlparse
 
 import redis
@@ -27,20 +28,13 @@ HEALTH_ENDPOINTS = {
     "integrations": app_connection_string("integrations-openreplay", 8888, "metrics"),
     "peers": app_connection_string("peers-openreplay", 8888, "health"),
     "sink": app_connection_string("sink-openreplay", 8888, "metrics"),
-    "sourcemapreader": app_connection_string(
-        "sourcemapreader-openreplay", 8888, "health"
-    ),
+    "sourcemapreader": app_connection_string("sourcemapreader-openreplay", 8888, "health"),
     "storage": app_connection_string("storage-openreplay", 8888, "metrics"),
 }
 
 
 def __check_database_pg(*_):
-    fail_response = {
-        "health": False,
-        "details": {
-            "errors": ["Postgres health-check failed"]
-        }
-    }
+    fail_response = {"health": False, "details": {"errors": ["Postgres health-check failed"]}}
     with pg_client.PostgresClient() as cur:
         try:
             cur.execute("SHOW server_version;")
@@ -61,7 +55,7 @@ def __check_database_pg(*_):
         "details": {
             # "version": server_version["server_version"],
             # "schema": schema_version["version"]
-        }
+        },
     }
 
 
@@ -70,20 +64,12 @@ def __not_supported(*_):
 
 
 def __always_healthy(*_):
-    return {
-        "health": True,
-        "details": {}
-    }
+    return {"health": True, "details": {}}
 
 
 def __check_be_service(service_name):
     def fn(*_):
-        fail_response = {
-            "health": False,
-            "details": {
-                "errors": ["server health-check failed"]
-            }
-        }
+        fail_response = {"health": False, "details": {"errors": ["server health-check failed"]}}
         try:
             results = requests.get(HEALTH_ENDPOINTS.get(service_name), timeout=2)
             if results.status_code != 200:
@@ -105,19 +91,13 @@ def __check_be_service(service_name):
                 print("couldn't get response")
                 # fail_response["details"]["errors"].append(str(e))
             return fail_response
-        return {
-            "health": True,
-            "details": {}
-        }
+        return {"health": True, "details": {}}
 
     return fn
 
 
 def __check_redis(*_):
-    fail_response = {
-        "health": False,
-        "details": {"errors": ["server health-check failed"]}
-    }
+    fail_response = {"health": False, "details": {"errors": ["server health-check failed"]}}
     if config("REDIS_STRING", default=None) is None:
         # fail_response["details"]["errors"].append("REDIS_STRING not defined in env-vars")
         return fail_response
@@ -135,53 +115,40 @@ def __check_redis(*_):
         "health": True,
         "details": {
             # "version": r.execute_command('INFO')['redis_version']
-        }
+        },
     }
 
 
 def __check_SSL(*_):
-    fail_response = {
-        "health": False,
-        "details": {
-            "errors": ["SSL Certificate health-check failed"]
-        }
-    }
+    fail_response = {"health": False, "details": {"errors": ["SSL Certificate health-check failed"]}}
     try:
         requests.get(config("SITE_URL"), verify=True, allow_redirects=True)
     except Exception as e:
         print("!! health failed: SSL Certificate")
         print(str(e))
         return fail_response
-    return {
-        "health": True,
-        "details": {}
-    }
+    return {"health": True, "details": {}}
 
 
 def __get_sessions_stats(*_):
     with pg_client.PostgresClient() as cur:
         constraints = ["projects.deleted_at IS NULL"]
-        query = cur.mogrify(f"""SELECT COALESCE(SUM(sessions_count),0) AS s_c,
+        query = cur.mogrify(
+            f"""SELECT COALESCE(SUM(sessions_count),0) AS s_c,
                                        COALESCE(SUM(events_count),0) AS e_c
                                 FROM public.projects_stats
                                      INNER JOIN public.projects USING(project_id)
-                                WHERE {" AND ".join(constraints)};""")
+                                WHERE {" AND ".join(constraints)};"""
+        )
         cur.execute(query)
         row = cur.fetchone()
-    return {
-        "numberOfSessionsCaptured": row["s_c"],
-        "numberOfEventCaptured": row["e_c"]
-    }
+    return {"numberOfSessionsCaptured": row["s_c"], "numberOfEventCaptured": row["e_c"]}
 
 
 def get_health():
     health_map = {
-        "databases": {
-            "postgres": __check_database_pg
-        },
-        "ingestionPipeline": {
-            "redis": __check_redis
-        },
+        "databases": {"postgres": __check_database_pg},
+        "ingestionPipeline": {"redis": __check_redis},
         "backendServices": {
             "alerts": __check_be_service("alerts"),
             "assets": __check_be_service("assets"),
@@ -197,10 +164,10 @@ def get_health():
             "peers": __check_be_service("peers"),
             "sink": __check_be_service("sink"),
             "sourcemapreader": __check_be_service("sourcemapreader"),
-            "storage": __check_be_service("storage")
+            "storage": __check_be_service("storage"),
         },
         "details": __get_sessions_stats,
-        "ssl": __check_SSL
+        "ssl": __check_SSL,
     }
     return __process_health(health_map=health_map)
 
@@ -221,9 +188,13 @@ def __process_health(health_map):
     return response
 
 
+# 计划任务
+# 目的是定期统计项目的会话和事件数量，并确保 projects_stats 表中的数据是最新的。通过遍历所有项目，该函数能够插入新的统计数据或更新现有数据，从而维持项目统计的准确性和完整性。
 def cron():
+    # 该函数 cron 使用一个数据库客户端 pg_client.PostgresClient() 连接到数据库。使用 with 语句是为了确保数据库连接在操作完成后自动关闭。
     with pg_client.PostgresClient() as cur:
-        query = cur.mogrify("""SELECT projects.project_id,
+        query = cur.mogrify(
+            """SELECT projects.project_id,
                                       projects.created_at,
                                       projects.sessions_last_check_at,
                                       projects.first_recorded_session_at,
@@ -231,7 +202,8 @@ def cron():
                                 FROM public.projects
                                      LEFT JOIN public.projects_stats USING (project_id)
                                 WHERE projects.deleted_at IS NULL
-                                ORDER BY project_id;""")
+                                ORDER BY project_id;"""
+        )
         cur.execute(query)
         rows = cur.fetchall()
         for r in rows:
@@ -248,24 +220,25 @@ def cron():
                     count_start_from = r["first_recorded_session_at"]
 
             else:
+                # 如果项目从未统计过会话和事件数据（即 last_update_at 为空），则标记为需要插入新数据。
                 # counted before, must update
                 count_start_from = r["last_update_at"]
-
+            # TimeUTC.datetime_to_timestamp() 将时间转换为时间戳格式
             count_start_from = TimeUTC.datetime_to_timestamp(count_start_from)
-            params = {"project_id": r["project_id"],
-                      "start_ts": count_start_from,
-                      "end_ts": TimeUTC.now(),
-                      "sessions_count": 0,
-                      "events_count": 0}
+            # current_timestamp = TimeUTC.now()
+            # print(current_timestamp)  # 输出类似于 1729124096000 的毫秒级时间戳
+            params = {"project_id": r["project_id"], "start_ts": count_start_from, "end_ts": TimeUTC.now(), "sessions_count": 0, "events_count": 0}
 
-            query = cur.mogrify("""SELECT COUNT(1) AS sessions_count,
+            query = cur.mogrify(
+                """SELECT COUNT(1) AS sessions_count,
                                           COALESCE(SUM(events_count),0) AS events_count
                                    FROM public.sessions
                                    WHERE project_id=%(project_id)s
                                       AND start_ts>=%(start_ts)s
                                       AND start_ts<=%(end_ts)s
                                       AND duration IS NOT NULL;""",
-                                params)
+                params,
+            )
             cur.execute(query)
             row = cur.fetchone()
             if row is not None:
@@ -273,56 +246,75 @@ def cron():
                 params["events_count"] = row["events_count"]
 
             if insert:
-                query = cur.mogrify("""INSERT INTO public.projects_stats(project_id, sessions_count, events_count, last_update_at)
+                query = cur.mogrify(
+                    """INSERT INTO public.projects_stats(project_id, sessions_count, events_count, last_update_at)
                                        VALUES (%(project_id)s, %(sessions_count)s, %(events_count)s, (now() AT TIME ZONE 'utc'::text));""",
-                                    params)
+                    params,
+                )
             else:
-                query = cur.mogrify("""UPDATE public.projects_stats
+                query = cur.mogrify(
+                    """UPDATE public.projects_stats
                                        SET sessions_count=sessions_count+%(sessions_count)s,
                                            events_count=events_count+%(events_count)s,
                                            last_update_at=(now() AT TIME ZONE 'utc'::text)
                                        WHERE project_id=%(project_id)s;""",
-                                    params)
+                    params,
+                )
             cur.execute(query)
 
 
 # this cron is used to correct the sessions&events count every week
+# cron 计划 任务
+# \主要目的是确保 projects_stats 表中每个项目的 sessions_count 和 events_count 是准确的。它通过重新计算每个项目的所有会话和事件数量来纠正任何潜在的不准确之处。
 def weekly_cron():
+    # 打开一个PostgreSQL数据库连接，并获取一个数据库游标 cur
     with pg_client.PostgresClient(long_query=True) as cur:
-        query = cur.mogrify("""SELECT project_id,
+        #    mogrify 是 psycopg2 中游标对象的一个方法，用于将 SQL 查询字符串和参数结合，并返回一个完整的 SQL 查询字符串。
+        query = cur.mogrify(
+            """SELECT project_id,
                                       projects_stats.last_update_at
                                FROM public.projects
                                     LEFT JOIN public.projects_stats USING (project_id)
                                WHERE projects.deleted_at IS NULL
-                               ORDER BY project_id;""")
+                               ORDER BY project_id;"""
+        )
+        # 这里执行了实际的 SQL 查询，query 是由 mogrify 生成的完整 SQL 语句。
+        # TODO 什么是游标
+        # cur.execute() 方法运行该查询并将结果存储在游标对象中。
         cur.execute(query)
+        # fetchall() 方法用于获取所有查询结果，并将其存储在 data 变量中。
         rows = cur.fetchall()
         for r in rows:
             if r["last_update_at"] is None:
                 continue
 
-            params = {"project_id": r["project_id"],
-                      "end_ts": TimeUTC.now(),
-                      "sessions_count": 0,
-                      "events_count": 0}
+            params = {"project_id": r["project_id"], "end_ts": TimeUTC.now(), "sessions_count": 0, "events_count": 0}
 
-            query = cur.mogrify("""SELECT COUNT(1) AS sessions_count,
+            query = cur.mogrify(
+                """SELECT COUNT(1) AS sessions_count,
                                           COALESCE(SUM(events_count),0) AS events_count
                                    FROM public.sessions
                                    WHERE project_id=%(project_id)s
                                       AND start_ts<=%(end_ts)s
                                       AND duration IS NOT NULL;""",
-                                params)
+                params,
+            )
+            # cur.execute(query) 是实际执行SQL查询的操作。虽然在前面的代码中构建了SQL语句（使用 cur.mogrify()），但这些语句只是将SQL命令以字符串的形式准备好。真正对数据库进行操作，执行这些SQL命令，是通过 cur.execute(query) 完成的。
+            # 如果没有 cur.execute(query)，即使SQL语句已经准备好，数据库也不会发生任何变化（如插入、更新、删除等操作也不会生效）。
+            # cur.execute() 使得Python与数据库进行实际的交互。例如，读取数据（SELECT）、更新数据（UPDATE）、删除数据（DELETE）等。
+            # 这一步不仅是发出SQL语句，还确保这些语句被数据库接收到并执行，从而在数据库中产生预期的效果。
             cur.execute(query)
             row = cur.fetchone()
             if row is not None:
                 params["sessions_count"] = row["sessions_count"]
                 params["events_count"] = row["events_count"]
 
-            query = cur.mogrify("""UPDATE public.projects_stats
+            query = cur.mogrify(
+                """UPDATE public.projects_stats
                                    SET sessions_count=%(sessions_count)s,
                                        events_count=%(events_count)s,
                                        last_update_at=(now() AT TIME ZONE 'utc'::text)
                                    WHERE project_id=%(project_id)s;""",
-                                params)
+                params,
+            )
             cur.execute(query)

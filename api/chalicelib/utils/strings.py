@@ -2,7 +2,7 @@ import string
 
 jsonb = "'::jsonb,'"
 dash = '", "'
-dash_nl = ',\n'
+dash_nl = ",\n"
 dash_key = ")s, %("
 
 
@@ -34,11 +34,11 @@ def pattern(s):
 
 
 def join(*args):
-    return '\x00'.join(args)
+    return "\x00".join(args)
 
 
 def split(s):
-    return s.split('\x00')
+    return s.split("\x00")
 
 
 def hexed(n):

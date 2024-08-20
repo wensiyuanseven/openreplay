@@ -20,6 +20,7 @@ apscheduler = "==3.10.4"
 redis = "==5.1.0b6"
 
 [dev-packages]
+ipykernel = "*"
 
 [requires]
 python_version = "3.12"

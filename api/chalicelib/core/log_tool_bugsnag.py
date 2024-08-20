@@ -7,9 +7,7 @@ IN_TY = "bugsnag"
 
 
 def list_projects(auth_token):
-    r = requests.get(url="https://api.bugsnag.com/user/organizations",
-                     params={"per_page": "100"},
-                     headers={"Authorization": "token " + auth_token, "X-Version": "2"})
+    r = requests.get(url="https://api.bugsnag.com/user/organizations", params={"per_page": "100"}, headers={"Authorization": "token " + auth_token, "X-Version": "2"})
     if r.status_code != 200:
         print("=======> bugsnag get organizations: something went wrong")
         print(r)
@@ -20,9 +18,7 @@ def list_projects(auth_token):
     orgs = []
     for i in r.json():
 
-        pr = requests.get(url="https://api.bugsnag.com/organizations/%s/projects" % i["id"],
-                          params={"per_page": "100"},
-                          headers={"Authorization": "token " + auth_token, "X-Version": "2"})
+        pr = requests.get(url="https://api.bugsnag.com/organizations/%s/projects" % i["id"], params={"per_page": "100"}, headers={"Authorization": "token " + auth_token, "X-Version": "2"})
         if pr.status_code != 200:
             print("=======> bugsnag get projects: something went wrong")
             print(pr)
@@ -62,14 +58,9 @@ def delete(tenant_id, project_id):
     return log_tools.delete(project_id=project_id, integration=IN_TY)
 
 
-def add_edit(tenant_id, project_id, data:schemas.IntegrationBugsnagSchema ):
+def add_edit(tenant_id, project_id, data: schemas.IntegrationBugsnagSchema):
     s = get(project_id)
     if s is not None:
-        return update(tenant_id=tenant_id, project_id=project_id,
-                      changes={"authorizationToken": data.authorization_token,
-                               "bugsnagProjectId": data.bugsnag_project_id})
+        return update(tenant_id=tenant_id, project_id=project_id, changes={"authorizationToken": data.authorization_token, "bugsnagProjectId": data.bugsnag_project_id})
     else:
-        return add(tenant_id=tenant_id,
-                   project_id=project_id,
-                   authorization_token=data.authorization_token,
-                   bugsnag_project_id=data.bugsnag_project_id)
+        return add(tenant_id=tenant_id, project_id=project_id, authorization_token=data.authorization_token, bugsnag_project_id=data.bugsnag_project_id)

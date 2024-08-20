@@ -8,10 +8,10 @@ from pydantic.v1 import validator
 
 
 class StatusEnum(str, Enum):
-    preview = 'preview'
-    in_progress = 'in-progress'
-    paused = 'paused'
-    closed = 'closed'
+    preview = "preview"
+    in_progress = "in-progress"
+    paused = "paused"
+    closed = "closed"
 
 
 class UTTestTask(BaseModel):
@@ -82,9 +82,9 @@ class UTTestSearch(BaseModel):
     is_active: Optional[bool] = Field(True, description="Flag to indicate if the test is active")
     user_id: Optional[int] = Field(None, description="The ID of the user who created the test")
 
-    @validator('sort_order')
+    @validator("sort_order")
     def sort_order_must_be_valid(cls, v):
-        if v not in ['asc', 'desc']:
+        if v not in ["asc", "desc"]:
             raise ValueError('Sort order must be either "asc" or "desc"')
         return v
 

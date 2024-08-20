@@ -1,3 +1,5 @@
+# 这个文件的主要目的是通过定时任务生成各个项目的每周报告，报告的内容包括项目在过去一周的问题数量及其演变情况，并通过电子邮件发送给相关的用户。
+# 代码通过一系列 SQL 查询从数据库中提取相关数据，处理和格式化这些数据后，最终将其发送给用户。
 from chalicelib.utils import pg_client, helper, email_helper, smtp
 from chalicelib.utils.TimeUTC import TimeUTC
 from chalicelib.utils.helper import get_issue_title
@@ -7,23 +9,33 @@ LOWEST_BAR_VALUE = 3
 
 def get_config(user_id):
     with pg_client.PostgresClient() as cur:
-        cur.execute(cur.mogrify("""\
+        cur.execute(
+            cur.mogrify(
+                """\
             SELECT users.weekly_report
             FROM public.users
             WHERE users.deleted_at ISNULL AND users.user_id=%(user_id)s 
-            LIMIT 1;""", {"user_id": user_id}))
+            LIMIT 1;""",
+                {"user_id": user_id},
+            )
+        )
         result = cur.fetchone()
     return helper.dict_to_camel_case(result)
 
 
 def edit_config(user_id, weekly_report):
     with pg_client.PostgresClient() as cur:
-        cur.execute(cur.mogrify("""\
+        cur.execute(
+            cur.mogrify(
+                """\
             UPDATE public.users
             SET weekly_report= %(weekly_report)s
             WHERE users.deleted_at ISNULL 
                 AND users.user_id=%(user_id)s
-            RETURNING weekly_report;""", {"user_id": user_id, "weekly_report": weekly_report}))
+            RETURNING weekly_report;""",
+                {"user_id": user_id, "weekly_report": weekly_report},
+            )
+        )
         result = cur.fetchone()
     return helper.dict_to_camel_case(result)
 
@@ -34,12 +46,16 @@ def cron():
         return
     _now = TimeUTC.now()
     with pg_client.PostgresClient(unlimited_query=True) as cur:
-        params = {"tomorrow": TimeUTC.midnight(delta_days=1),
-                  "3_days_ago": TimeUTC.midnight(delta_days=-3),
-                  "1_week_ago": TimeUTC.midnight(delta_days=-7),
-                  "2_week_ago": TimeUTC.midnight(delta_days=-14),
-                  "5_week_ago": TimeUTC.midnight(delta_days=-35)}
-        cur.execute(cur.mogrify("""\
+        params = {
+            "tomorrow": TimeUTC.midnight(delta_days=1),
+            "3_days_ago": TimeUTC.midnight(delta_days=-3),
+            "1_week_ago": TimeUTC.midnight(delta_days=-7),
+            "2_week_ago": TimeUTC.midnight(delta_days=-14),
+            "5_week_ago": TimeUTC.midnight(delta_days=-35),
+        }
+        cur.execute(
+            cur.mogrify(
+                """\
             SELECT project_id,
                name                                                                     AS project_name,
                users.emails                                                             AS emails,
@@ -85,7 +101,10 @@ def cron():
                             WHERE sessions.project_id = projects.project_id
                               AND issues.timestamp <= %(1_week_ago)s
                               AND issues.timestamp >= %(5_week_ago)s
-                     ) AS month_1_issues ON (TRUE);"""), params)
+                     ) AS month_1_issues ON (TRUE);"""
+            ),
+            params,
+        )
         projects_data = cur.fetchall()
         _now2 = TimeUTC.now()
         print(f">> Weekly report query: {_now2 - _now} ms")
@@ -94,16 +113,15 @@ def cron():
         for p in projects_data:
             params["project_id"] = p["project_id"]
             print(f"checking {p['project_name']} : {p['project_id']}")
-            if len(p["emails"]) == 0 \
-                    or p["this_week_issues_count"] + p["past_week_issues_count"] + p["past_month_issues_count"] == 0:
-                print('ignore')
+            if len(p["emails"]) == 0 or p["this_week_issues_count"] + p["past_week_issues_count"] + p["past_month_issues_count"] == 0:
+                print("ignore")
                 continue
             print("valid")
-            p["past_week_issues_evolution"] = helper.__decimal_limit(
-                helper.__progress(p["this_week_issues_count"], p["past_week_issues_count"]), 1)
-            p["past_month_issues_evolution"] = helper.__decimal_limit(
-                helper.__progress(p["this_week_issues_count"], p["past_month_issues_count"]), 1)
-            cur.execute(cur.mogrify("""
+            p["past_week_issues_evolution"] = helper.__decimal_limit(helper.__progress(p["this_week_issues_count"], p["past_week_issues_count"]), 1)
+            p["past_month_issues_evolution"] = helper.__decimal_limit(helper.__progress(p["this_week_issues_count"], p["past_month_issues_count"]), 1)
+            cur.execute(
+                cur.mogrify(
+                    """
                 SELECT LEFT(TO_CHAR(timestamp_i, 'Dy'),1) AS day_short,
                        TO_CHAR(timestamp_i, 'Mon. DD, YYYY') AS day_long,
                        (
@@ -118,26 +136,34 @@ def cron():
                              DATE_TRUNC('day', now()) - INTERVAL '1 day',
                              '1 day'::INTERVAL
                          ) AS timestamp_i
-                ORDER BY timestamp_i;""", params))
+                ORDER BY timestamp_i;""",
+                    params,
+                )
+            )
             days_partition = cur.fetchall()
             _now2 = TimeUTC.now()
             print(f">> Weekly report s-query-1: {_now2 - _now} ms project_id: {p['project_id']}")
             _now = _now2
-            max_days_partition = max(x['issues_count'] for x in days_partition)
+            max_days_partition = max(x["issues_count"] for x in days_partition)
             for d in days_partition:
                 if max_days_partition <= 0:
                     d["value"] = LOWEST_BAR_VALUE
                 else:
                     d["value"] = d["issues_count"] * 100 / max_days_partition
                     d["value"] = d["value"] if d["value"] > LOWEST_BAR_VALUE else LOWEST_BAR_VALUE
-            cur.execute(cur.mogrify("""\
+            cur.execute(
+                cur.mogrify(
+                    """\
             SELECT type, COUNT(*) AS count
             FROM events_common.issues INNER JOIN public.issues USING (issue_id)
             WHERE project_id = %(project_id)s
               AND timestamp >= (EXTRACT(EPOCH FROM DATE_TRUNC('day', now()) - INTERVAL '7 days') * 1000)::BIGINT
             GROUP BY type
             ORDER BY count DESC, type
-            LIMIT 4;""", params))
+            LIMIT 4;""",
+                    params,
+                )
+            )
             issues_by_type = cur.fetchall()
             _now2 = TimeUTC.now()
             print(f">> Weekly report s-query-1: {_now2 - _now} ms project_id: {p['project_id']}")
@@ -149,7 +175,9 @@ def cron():
                     i["value"] = LOWEST_BAR_VALUE
                 else:
                     i["value"] = i["count"] * 100 / max_issues_by_type
-            cur.execute(cur.mogrify("""\
+            cur.execute(
+                cur.mogrify(
+                    """\
                 SELECT TO_CHAR(timestamp_i, 'Dy')             AS day_short,
                        TO_CHAR(timestamp_i, 'Mon. DD, YYYY')  AS day_long,
                        COALESCE((SELECT JSONB_AGG(sub)
@@ -169,7 +197,10 @@ def cron():
                              '1 day'::INTERVAL
                          ) AS timestamp_i
                 GROUP BY timestamp_i
-                ORDER BY timestamp_i;""", params))
+                ORDER BY timestamp_i;""",
+                    params,
+                )
+            )
             issues_breakdown_by_day = cur.fetchall()
             _now2 = TimeUTC.now()
             print(f">> Weekly report s-query-1: {_now2 - _now} ms project_id: {p['project_id']}")
@@ -186,7 +217,9 @@ def cron():
                     else:
                         j["value"] = j["count"] * 100 / max_days_partition
                         j["value"] = j["value"] if j["value"] > LOWEST_BAR_VALUE else LOWEST_BAR_VALUE
-            cur.execute(cur.mogrify("""
+            cur.execute(
+                cur.mogrify(
+                    """
                 SELECT type,
                        COUNT(*)                   AS issue_count,
                        COUNT(DISTINCT session_id) AS sessions_count,
@@ -218,27 +251,28 @@ def cron():
                 WHERE mi.project_id = %(project_id)s AND sessions.project_id = %(project_id)s AND sessions.duration IS NOT NULL
                     AND sessions.start_ts >= (EXTRACT(EPOCH FROM DATE_TRUNC('day', now()) - INTERVAL '1 week') * 1000)::BIGINT
                 GROUP BY type
-                ORDER BY issue_count DESC;""", params))
+                ORDER BY issue_count DESC;""",
+                    params,
+                )
+            )
             issues_breakdown_list = cur.fetchall()
             _now2 = TimeUTC.now()
             print(f">> Weekly report s-query-1: {_now2 - _now} ms project_id: {p['project_id']}")
             _now = _now2
             if len(issues_breakdown_list) > 4:
-                others = {"type": "Others",
-                          "sessions_count": sum(i["sessions_count"] for i in issues_breakdown_list[4:]),
-                          "issue_count": sum(i["issue_count"] for i in issues_breakdown_list[4:]),
-                          "last_week_sessions_count": sum(
-                              i["last_week_sessions_count"] for i in issues_breakdown_list[4:]),
-                          "last_month_sessions_count": sum(
-                              i["last_month_sessions_count"] for i in issues_breakdown_list[4:])}
+                others = {
+                    "type": "Others",
+                    "sessions_count": sum(i["sessions_count"] for i in issues_breakdown_list[4:]),
+                    "issue_count": sum(i["issue_count"] for i in issues_breakdown_list[4:]),
+                    "last_week_sessions_count": sum(i["last_week_sessions_count"] for i in issues_breakdown_list[4:]),
+                    "last_month_sessions_count": sum(i["last_month_sessions_count"] for i in issues_breakdown_list[4:]),
+                }
                 issues_breakdown_list = issues_breakdown_list[:4]
                 issues_breakdown_list.append(others)
             for i in issues_breakdown_list:
                 i["type"] = get_issue_title(i["type"])
-                i["last_week_sessions_evolution"] = helper.__decimal_limit(
-                    helper.__progress(i["sessions_count"], i["last_week_sessions_count"]), 1)
-                i["last_month_sessions_evolution"] = helper.__decimal_limit(
-                    helper.__progress(i["sessions_count"], i["last_month_sessions_count"]), 1)
+                i["last_week_sessions_evolution"] = helper.__decimal_limit(helper.__progress(i["sessions_count"], i["last_week_sessions_count"]), 1)
+                i["last_month_sessions_evolution"] = helper.__decimal_limit(helper.__progress(i["sessions_count"], i["last_month_sessions_count"]), 1)
                 i["sessions_count"] = f'{i["sessions_count"]:,}'
             keep_types = [i["type"] for i in issues_breakdown_list]
             for i in issues_breakdown_by_day:
@@ -247,14 +281,25 @@ def cron():
                     if j["type"] in keep_types:
                         keep.append(j)
                 i["partition"] = keep
-            emails_to_send.append({"email": p.pop("emails"),
-                                   "data": {
-                                       **p,
-                                       "days_partition": days_partition,
-                                       "issues_by_type": issues_by_type,
-                                       "issues_breakdown_by_day": issues_breakdown_by_day,
-                                       "issues_breakdown_list": issues_breakdown_list
-                                   }})
+            # pop
+            # 功能: pop 方法用于移除并返回列表中的一个元素。默认情况下，它移除并返回列表的最后一个元素，但你也可以指定索引来移除和返回该位置的元素。
+            # 语法:
+            # list.pop()（移除并返回最后一个元素）
+            # list.pop(index)（移除并返回指定位置的元素）
+
+            # append 方法用于将一个元素添加到列表的末尾
+            emails_to_send.append(
+                {
+                    "email": p.pop("emails"),
+                    "data": {
+                        **p,
+                        "days_partition": days_partition,
+                        "issues_by_type": issues_by_type,
+                        "issues_breakdown_by_day": issues_breakdown_by_day,
+                        "issues_breakdown_list": issues_breakdown_list,
+                    },
+                }
+            )
         print(f">>> Sending weekly report to {len(emails_to_send)} email-group")
         for e in emails_to_send:
             email_helper.weekly_report2(recipients=e["email"], data=e["data"])

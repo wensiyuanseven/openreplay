@@ -19,7 +19,8 @@ def search(project_id):
                           AND projects.deleted_at ISNULL
                         LIMIT 1) AS count
                 FROM unnest(enum_range(NULL::integration_provider)) AS supported_integrations(name);""",
-                {"project_id": project_id})
+                {"project_id": project_id},
+            )
         )
         r = cur.fetchall()
         for k in r:
@@ -37,7 +38,8 @@ def add(project_id, integration, options):
                 INSERT INTO public.integrations(project_id, provider, options) 
                 VALUES (%(project_id)s, %(provider)s, %(options)s::jsonb)
                 RETURNING *;""",
-                {"project_id": project_id, "provider": integration, "options": options})
+                {"project_id": project_id, "provider": integration, "options": options},
+            )
         )
         r = cur.fetchone()
     return helper.dict_to_camel_case(helper.flatten_nested_dicts(r))
@@ -54,7 +56,8 @@ def get(project_id, integration):
                     AND project_id = %(project_id)s
                     AND projects.deleted_at ISNULL
                 LIMIT 1;""",
-                {"project_id": project_id, "provider": integration})
+                {"project_id": project_id, "provider": integration},
+            )
         )
         r = cur.fetchone()
     return helper.dict_to_camel_case(helper.flatten_nested_dicts(r))
@@ -68,7 +71,8 @@ def get_all_by_type(integration):
                 SELECT integrations.* 
                 FROM public.integrations INNER JOIN public.projects USING(project_id)
                 WHERE provider = %(provider)s AND projects.deleted_at ISNULL;""",
-                {"provider": integration})
+                {"provider": integration},
+            )
         )
         r = cur.fetchall()
     return helper.list_to_camel_case(r, flatten=True)
@@ -83,12 +87,14 @@ def edit(project_id, integration, changes):
         return None
     with pg_client.PostgresClient() as cur:
         cur.execute(
-            cur.mogrify("""\
+            cur.mogrify(
+                """\
                     UPDATE public.integrations
                     SET options=options||%(changes)s
                     WHERE project_id =%(project_id)s AND provider = %(provider)s 
                     RETURNING *;""",
-                        {"project_id": project_id, "provider": integration, "changes": json.dumps(changes)})
+                {"project_id": project_id, "provider": integration, "changes": json.dumps(changes)},
+            )
         )
         return helper.dict_to_camel_case(helper.flatten_nested_dicts(cur.fetchone()))
 
@@ -96,10 +102,12 @@ def edit(project_id, integration, changes):
 def delete(project_id, integration):
     with pg_client.PostgresClient() as cur:
         cur.execute(
-            cur.mogrify("""\
+            cur.mogrify(
+                """\
                     DELETE FROM public.integrations
                     WHERE project_id=%(project_id)s AND provider=%(provider)s;""",
-                        {"project_id": project_id, "provider": integration})
+                {"project_id": project_id, "provider": integration},
+            )
         )
         return {"state": "success"}
 
@@ -108,11 +116,12 @@ def get_all_by_tenant(tenant_id, integration):
     with pg_client.PostgresClient() as cur:
         cur.execute(
             cur.mogrify(
-                """SELECT integrations.* 
+                """SELECT integrations.*
                     FROM public.integrations INNER JOIN public.projects USING(project_id) 
                     WHERE provider = %(provider)s 
                         AND projects.deleted_at ISNULL;""",
-                {"provider": integration})
+                {"provider": integration},
+            )
         )
         r = cur.fetchall()
     return helper.list_to_camel_case(r, flatten=True)

@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 async def OR_context(request: Request) -> schemas.CurrentContext:
+    # 如果 request.state 对象有 currentContext 属性，则执行以下代码
     if hasattr(request.state, "currentContext"):
         return request.state.currentContext
     else:
@@ -32,6 +33,7 @@ class ORRoute(APIRoute):
             try:
                 response: Response = await original_route_handler(request)
             except HTTPException as e:
+                # 捕获整个 4xx 范围的状态码
                 if e.status_code // 100 == 4:
                     return JSONResponse(content={"errors": e.detail if isinstance(e.detail, list) else [e.detail]},
                                         status_code=e.status_code)
@@ -39,15 +41,16 @@ class ORRoute(APIRoute):
                     raise e
 
             if isinstance(response, JSONResponse):
+                # response = response 这样的代码在语法上是完全正确的，但在逻辑上它是冗余的 它只是把 response 变量的当前值重新赋值给它自己。这不会导致语法错误或异常
+                # 相比之下，带有类型注解的 response: JSONResponse = response 是有用的，因为它明确了 response 的类型，尽管它也不会改变 response 的值或类型。类型注解的作用是在代码中提供类型信息，增强代码的可读性，并帮助静态类型检查器。
                 response: JSONResponse = response
-                body = json.loads(response.body.decode('utf8'))
+                # 用于将 JSON 格式的字符串解析为对应的 Python 数据结构（通常是字典或列表）。
+                body = json.loads(response.body.decode('utf8'))  #假设输入的字符串是 '{"key": "value"}'，那么 json.loads 会将其转换为 Python 字典 {"key": "value"}。
                 body = helper.cast_session_id_to_string(body)
                 response = JSONResponse(content=body, status_code=response.status_code,
                                         headers={k: v for k, v in response.headers.items() if k != "content-length"},
                                         media_type=response.media_type, background=response.background)
-                if response.status_code == 200 \
-                        and body is not None and isinstance(body, dict) \
-                        and body.get("errors") is not None:
+                if response.status_code == 200 and body is not None and isinstance(body, dict) and body.get("errors") is not None:
                     if "not found" in body["errors"][0]:
                         response.status_code = status.HTTP_404_NOT_FOUND
                     else:

@@ -19,9 +19,7 @@ def get_sql_operator(op: Union[schemas.SearchEventOperator, schemas.ClickEventEx
 
 
 def is_negation_operator(op: schemas.SearchEventOperator):
-    return op in [schemas.SearchEventOperator._is_not,
-                  schemas.SearchEventOperator._not_on,
-                  schemas.SearchEventOperator._not_contains]
+    return op in [schemas.SearchEventOperator._is_not, schemas.SearchEventOperator._not_on, schemas.SearchEventOperator._not_contains]
 
 
 def reverse_sql_operator(op):
