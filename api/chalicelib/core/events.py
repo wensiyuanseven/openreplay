@@ -1,3 +1,5 @@
+# 这个代码片段主要用于处理和检索与用户会话相关的各种事件和错误信息。它提供了根据会话ID获取特定事件（如点击、输入、位置、错误等）的方法，并且支持基于事件类型和文本搜索来查找相关数据。
+# 此外，代码片段还支持对移动端的特殊事件类型（如点击、输入、视图、滑动等）进行处理和搜索。
 from typing import Optional
 
 import schemas
@@ -8,7 +10,12 @@ from chalicelib.utils import pg_client, helper
 from chalicelib.utils.TimeUTC import TimeUTC
 from chalicelib.utils.event_filter_definition import SupportedFilter, Event
 
-
+# 根据会话ID获取自定义事件信息。
+# 参数：
+# - session_id: 会话ID。
+# - project_id: 项目ID。
+# 返回值：
+# - 包含自定义事件的字典列表，按时间戳排序。
 def get_customs_by_session_id(session_id, project_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(cur.mogrify("""\
@@ -25,12 +32,27 @@ def get_customs_by_session_id(session_id, project_id):
     return helper.dict_to_camel_case(rows)
 
 
+# 合并表格中的指定行。
+# 参数：
+# - rows: 事件列表。
+# - start: 开始合并的索引。
+# - count: 要合并的行数。
+# - replacement: 替换合并后内容的字典。
+# 返回值：
+# - 返回合并后的事件列表。
 def __merge_cells(rows, start, count, replacement):
     rows[start] = replacement
     rows = rows[:start + 1] + rows[start + count:]
     return rows
 
 
+# 获取并处理会话中的ClickRage问题。
+# 参数：
+# - rows: 事件列表。
+# - session_id: 会话ID。
+# - project_id: 项目ID。
+# 返回值：
+# - 返回处理ClickRage后的事件列表。
 def __get_grouped_clickrage(rows, session_id, project_id):
     click_rage_issues = issues.get_by_session_id(session_id=session_id, issue_type="click_rage", project_id=project_id)
     if len(click_rage_issues) == 0:
@@ -51,7 +73,14 @@ def __get_grouped_clickrage(rows, session_id, project_id):
                 break
     return rows
 
-
+# 根据会话ID和事件类型获取会话中发生的事件。
+# 参数：
+# - session_id: 会话ID。
+# - project_id: 项目ID。
+# - group_clickrage: 是否对ClickRage事件进行分组。
+# - event_type: 可选的事件类型（如CLICK、INPUT、LOCATION等）。
+# 返回值：
+# - 返回按时间戳排序的事件列表。
 def get_by_session_id(session_id, project_id, group_clickrage=False, event_type: Optional[schemas.EventType] = None):
     with pg_client.PostgresClient() as cur:
         rows = []
@@ -97,7 +126,14 @@ def get_by_session_id(session_id, project_id, group_clickrage=False, event_type:
         rows = sorted(rows, key=lambda k: (k["timestamp"], k["messageId"]))
     return rows
 
-
+# 搜索标签相关的事件。
+# 参数：
+# - project_id: 项目ID。
+# - value: 搜索的标签值。
+# - key: 可选的标签键。
+# - source: 可选的来源。
+# 返回值：
+# - 返回与搜索值匹配的标签列表。
 def _search_tags(project_id, value, key=None, source=None):
     with pg_client.PostgresClient() as cur:
         query = f"""
@@ -113,7 +149,7 @@ def _search_tags(project_id, value, key=None, source=None):
         results = helper.list_to_camel_case(cur.fetchall())
     return results
 
-
+# 定义了各种事件类型，包含不同事件的表名和列名。
 class EventType:
     CLICK = Event(ui_type=schemas.EventType.click, table="events.clicks", column="label")
     INPUT = Event(ui_type=schemas.EventType.input, table="events.inputs", column="label")
@@ -136,7 +172,7 @@ class EventType:
     CRASH_MOBILE = Event(ui_type=schemas.EventType.error_mobile, table="events_common.crashes",
                          column=None)  # column=None because errors are searched by name or message
 
-
+# 定义了支持的事件类型及其处理方式。
 SUPPORTED_TYPES = {
     EventType.CLICK.ui_type: SupportedFilter(get=autocomplete.__generic_autocomplete(EventType.CLICK),
                                              query=autocomplete.__generic_query(typename=EventType.CLICK.ui_type)),
@@ -184,7 +220,12 @@ SUPPORTED_TYPES = {
                                                     query=None),
 }
 
-
+# 根据会话ID获取会话中的错误信息。
+# 参数：
+# - session_id: 会话ID。
+# - project_id: 项目ID。
+# 返回值：
+# - 返回错误事件的详细信息列表。
 def get_errors_by_session_id(session_id, project_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(cur.mogrify(f"""\
@@ -197,7 +238,15 @@ def get_errors_by_session_id(session_id, project_id):
             e["stacktrace_parsed_at"] = TimeUTC.datetime_to_timestamp(e["stacktrace_parsed_at"])
         return helper.list_to_camel_case(errors)
 
-
+# 根据输入文本、事件类型、项目ID等搜索相关事件。
+# 参数：
+# - text: 输入的搜索文本。
+# - event_type: 事件类型。
+# - project_id: 项目ID。
+# - source: 数据来源。
+# - key: 可选的键值。
+# 返回值：
+# - 返回匹配的事件数据列表。
 def search(text, event_type, project_id, source, key):
     if not event_type:
         return {"data": autocomplete.__get_autocomplete_table(text, project_id)}
@@ -221,3 +270,7 @@ def search(text, event_type, project_id, source, key):
         return {"errors": ["unsupported event"]}
 
     return {"data": rows}
+
+# 注意事项：
+# 事件处理顺序：在处理复杂的事件时，需要确保事件处理的顺序正确，以避免数据混淆或不准确的情况。
+# 查询效率：对于大量数据的查询，可能会影响性能，建议进行适当的数据库优化或分页查询。

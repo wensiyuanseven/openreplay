@@ -10,23 +10,28 @@ from chalicelib.core import weekly_report, jobs, health
 
 
 async def run_scheduled_jobs() -> None:
+    # 获取所有已调度的任务并逐个执行。对于删除用户数据的任务，它会删除与用户相关的会话记录，并更新任务的状态。
     jobs.execute_jobs()
 
 
 async def weekly_report_cron() -> None:
+    # 生成每周报告并通过电子邮件发送给用户。这个函数是任务调度程序（cron job）的核心部分，通常定期运行，例如每周一次。
     weekly_report.cron()
 
 
 async def telemetry_cron() -> None:
     telemetry.compute()
+    #  用于定期更新并发送租户的统计数据。
 
 
 # 会去跑这些定时任务
 async def health_cron() -> None:
+    # 执行健康检查
     health.cron()
 
 
 async def weekly_health_cron() -> None:
+    # 每周执行健康检查
     health.weekly_cron()
 
 

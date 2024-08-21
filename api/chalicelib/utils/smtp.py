@@ -1,4 +1,8 @@
+# SMTP，全称为 Simple Mail Transfer Protocol，即“简单邮件传输协议”。它是一种用于在网络中发送和接收电子邮件的协议。
+# SMTP 是互联网邮件服务的基础，通过它，邮件客户端可以将邮件发送到邮件服务器，邮件服务器之间也可以通过 SMTP 传输邮件。
+
 # 这个文件的主要目的是提供一个用于发送电子邮件的 SMTP 客户端封装，并确保在发邮件之前正确配置和测试 SMTP 服务器连接。
+
 # 通过日志记录和异常处理，它能确保在邮件发送过程中的错误被及时捕获和报告，同时提供了一种优雅的方式管理 SMTP 连接的生命周期。
 import logging
 
@@ -81,9 +85,9 @@ class SMTPClient:
         try:
             status = self.server.noop()[0]
             if not (status == 250):
-                raise Exception(f"SMTP connexion error, status:{status}")
+                raise Exception(f"SMTP 连接错误, status:{status}")
         except Exception as e:  # smtplib.SMTPServerDisconnected
-            logging.error(f'!! SMTP connexion error to {config("EMAIL_HOST")}:{config("EMAIL_PORT", cast=int)}')
+            logging.error(f'!! SMTP 连接错误 {config("EMAIL_HOST")}:{config("EMAIL_PORT", cast=int)}')
             logging.error(e)
             return False, e
 
@@ -92,7 +96,7 @@ class SMTPClient:
             self.__enter__()
             self.__exit__()
         except Exception as e:
-            logging.error(f'!! SMTP authentication error to {config("EMAIL_HOST")}:{config("EMAIL_PORT", cast=int)}')
+            logging.error(f'!! SMTP 身份验证错误 {config("EMAIL_HOST")}:{config("EMAIL_PORT", cast=int)}')
             logging.error(e)
             return False, e
 
@@ -109,7 +113,7 @@ SMTP_NOTIFIED = False
 def has_smtp():
     global VALID_SMTP, SMTP_ERROR, SMTP_NOTIFIED
     if SMTP_ERROR is not None:
-        logging.error("!!! SMTP error found, disabling SMTP configuration:")
+        logging.error("!!! 发现 SMTP 错误，禁用 SMTP 配置:")
         logging.error(SMTP_ERROR)
 
     if VALID_SMTP is not None:
@@ -120,7 +124,7 @@ def has_smtp():
         return VALID_SMTP
     elif not SMTP_NOTIFIED:
         SMTP_NOTIFIED = True
-        logging.info("no SMTP configuration found")
+        logging.info("未找到 SMTP 配置")
     return False
 
 
@@ -133,8 +137,7 @@ def check_connexion():
     result = sock.connect_ex((config("EMAIL_HOST"), config("EMAIL_PORT", cast=int)))
     sock.close()
     if not (result == 0):
-        error = f"""!! SMTP {config("EMAIL_HOST")}:{config("EMAIL_PORT", cast=int)} is unreachable
-f'please make sure the host&port are correct, and the SMTP protocol is authorized on your server."""
+        error = f"""!! SMTP {config("EMAIL_HOST")}:{config("EMAIL_PORT", cast=int)} 无法访问.请确保主机和端口正确，并且您的服务器上已授权 SMTP 协议."""
         logging.error(error)
         sock.close()
         return False, error

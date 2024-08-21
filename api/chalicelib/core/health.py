@@ -8,13 +8,14 @@ from decouple import config
 from chalicelib.utils import pg_client
 from chalicelib.utils.TimeUTC import TimeUTC
 
-
+# 根据服务名称、端口号和路径生成连接字符串，用于访问各个服务的健康检查端点。
 def app_connection_string(name, port, path):
     namespace = config("POD_NAMESPACE", default="app")
     conn_string = config("CLUSTER_URL", default="svc.cluster.local")
     return f"http://{'.'.join(filter(None,[name,namespace,conn_string]))}:{port}/{path}"
 
 
+# 是一个字典，包含了不同服务的健康检查端点，通过 app_connection_string 函数生成
 HEALTH_ENDPOINTS = {
     "alerts": app_connection_string("alerts-openreplay", 8888, "health"),
     "assets": app_connection_string("assets-openreplay", 8888, "metrics"),
@@ -33,21 +34,24 @@ HEALTH_ENDPOINTS = {
 }
 
 
+# 检查PostgreSQL数据库的运行状态和版本信息
 def __check_database_pg(*_):
     fail_response = {"health": False, "details": {"errors": ["Postgres health-check failed"]}}
     with pg_client.PostgresClient() as cur:
         try:
+            # SHOW server_version;：这是一个 PostgreSQL 的 SQL 命令，用于显示当前连接的 PostgreSQL 数据库的版本信息。这个命令会返回数据库服务器的版本号
+            # ur.execute("SHOW server_version;") 用于在 PostgreSQL 数据库上执行 SHOW server_version; SQL 命令，来获取并显示数据库的版本信息。
             cur.execute("SHOW server_version;")
             server_version = cur.fetchone()
         except Exception as e:
-            print("!! health failed: postgres not responding")
+            print("!! 健康检查失败：postgres 没有响应")
             print(str(e))
             return fail_response
         try:
             cur.execute("SELECT openreplay_version() AS version;")
             schema_version = cur.fetchone()
         except Exception as e:
-            print("!! health failed: openreplay_version not defined")
+            print("!! 健康检查失败：未定义 openreplay_version")
             print(str(e))
             return fail_response
     return {
@@ -58,15 +62,22 @@ def __check_database_pg(*_):
         },
     }
 
-
+# *_ 是一种不常见但有效的命名方式，表示函数接收任意数量的位置参数，但这些参数在函数体中并不使用。下划线 _ 通常用作一个占位符，表示这个变量或参数是被故意忽略的、不重要的
+# 使用场景
+# 兼容性：当你希望函数能够接受任意参数（以保持与其他函数签名一致），但实际上并不需要使用这些参数时，可以使用这种语法。
+# 占位符：在某些场景下，使用 _ 作为变量或参数名称表示它们不重要或不使用，这是一种约定俗成的方式。
 def __not_supported(*_):
     return {"errors": ["not supported"]}
 
-
+# *_ 是一种不常见但有效的命名方式，表示函数接收任意数量的位置参数，但这些参数在函数体中并不使用。下划线 _ 通常用作一个占位符，表示这个变量或参数是被故意忽略的、不重要的
+# 使用场景
+# 兼容性：当你希望函数能够接受任意参数（以保持与其他函数签名一致），但实际上并不需要使用这些参数时，可以使用这种语法。
+# 占位符：在某些场景下，使用 _ 作为变量或参数名称表示它们不重要或不使用，这是一种约定俗成的方式。
 def __always_healthy(*_):
     return {"health": True, "details": {}}
 
 
+# 动态生成一个检查后端服务（如 alerts, assets, assist 等）的函数，通过向相应服务的健康检查端点发送HTTP请求，来确认服务是否正常运行
 def __check_be_service(service_name):
     def fn(*_):
         fail_response = {"health": False, "details": {"errors": ["server health-check failed"]}}
@@ -96,6 +107,7 @@ def __check_be_service(service_name):
     return fn
 
 
+# 检查Redis服务的运行状态。
 def __check_redis(*_):
     fail_response = {"health": False, "details": {"errors": ["server health-check failed"]}}
     if config("REDIS_STRING", default=None) is None:
@@ -119,6 +131,7 @@ def __check_redis(*_):
     }
 
 
+# 检查SSL证书的有效性
 def __check_SSL(*_):
     fail_response = {"health": False, "details": {"errors": ["SSL Certificate health-check failed"]}}
     try:
@@ -145,6 +158,7 @@ def __get_sessions_stats(*_):
     return {"numberOfSessionsCaptured": row["s_c"], "numberOfEventCaptured": row["e_c"]}
 
 
+# 函数通过聚合不同的健康检查函数来生成一个整体的健康报告。这个报告包含了数据库、后端服务、Redis、SSL证书的健康状态，还包括了应用程序的整体运行情况
 def get_health():
     health_map = {
         "databases": {"postgres": __check_database_pg},
@@ -172,6 +186,7 @@ def get_health():
     return __process_health(health_map=health_map)
 
 
+# 函数负责处理和过滤健康报告中的信息，根据环境变量配置，有选择地排除某些检查项。
 def __process_health(health_map):
     response = dict(health_map)
     for parent_key in health_map.keys():
@@ -265,7 +280,8 @@ def cron():
 
 # this cron is used to correct the sessions&events count every week
 # cron 计划 任务
-# \主要目的是确保 projects_stats 表中每个项目的 sessions_count 和 events_count 是准确的。它通过重新计算每个项目的所有会话和事件数量来纠正任何潜在的不准确之处。
+# 主要目的是确保 projects_stats 表中每个项目的 sessions_count 和 events_count 是准确的。它通过重新计算每个项目的所有会话和事件数量来纠正任何潜在的不准确之处。
+# 每周执行一次，重新计算所有项目的会话和事件数量，纠正任何潜在的统计错误。
 def weekly_cron():
     # 打开一个PostgreSQL数据库连接，并获取一个数据库游标 cur
     with pg_client.PostgresClient(long_query=True) as cur:

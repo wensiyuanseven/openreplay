@@ -1,3 +1,6 @@
+# 代码片段的作用：该代码定义了一个国家代码与国家名称的字典，并提供了一个函数用于根据输入文本自动完成国家代码的搜索。
+
+# 定义一个包含国家代码与对应国家名称的字典
 COUNTRIES = {
     "AC": "Ascension Island",
     "AD": "Andorra",
@@ -284,13 +287,26 @@ COUNTRIES = {
 }
 
 
+# 定义一个函数，用于根据输入文本自动完成国家代码的搜索
 def get_country_code_autocomplete(text):
+    """
+    根据用户输入的文本查找匹配的国家代码。
+
+    参数:
+        text (str): 用户输入的文本，可能是国家代码或国家名称的一部分。
+
+    返回:
+        list: 一个包含所有匹配的国家代码的列表。
+    """
+    # 如果输入文本为空或为None，则返回空列表
     if text is None or len(text) == 0:
         return []
+    # 初始化一个空列表，用于存储匹配的国家代码
     results = []
+    # 遍历COUNTRIES字典的所有键（国家代码）
     for code in COUNTRIES:
-        if text.lower() in code.lower() \
-                or text.lower() in COUNTRIES[code].lower():
+        # 如果输入文本与国家代码或国家名称的任何部分匹配（不区分大小写），则将该国家代码添加到结果列表中
+        if text.lower() in code.lower() or text.lower() in COUNTRIES[code].lower():
             results.append(code)
-
+    # 返回匹配的国家代码列表
     return results

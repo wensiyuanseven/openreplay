@@ -1,3 +1,5 @@
+# 这段代码是一个用于处理和分析点击热力图（Click Heatmap）的模块。
+# 通过与PostgreSQL数据库的交互，该模块能够根据项目ID、URL、会话ID等参数查询并返回热力图数据。主要功能包括：按URL查询点击事件的坐标、根据URL和会话ID获取点击事件的坐标和选择器、搜索符合条件的短会话、以及获取特定会话的详细信息和页面事件。
 import logging
 
 import schemas
@@ -8,7 +10,13 @@ from chalicelib.utils import pg_client, helper
 
 logger = logging.getLogger(__name__)
 
-
+# 函数：get_by_url
+# 功能：根据项目ID和给定的URL获取该URL上发生的点击事件的坐标数据，用于生成点击热力图。
+# 参数：
+# - project_id: 项目ID。
+# - data: schemas.GetHeatMapPayloadSchema类型，包含URL、时间范围等过滤条件。
+# 返回值：
+# - 返回包含点击事件坐标的列表。
 def get_by_url(project_id, data: schemas.GetHeatMapPayloadSchema):
     args = {"startDate": data.startTimestamp, "endDate": data.endTimestamp,
             "project_id": project_id, "url": data.url}
@@ -79,7 +87,14 @@ def get_by_url(project_id, data: schemas.GetHeatMapPayloadSchema):
 
     return helper.list_to_camel_case(rows)
 
-
+# 函数：get_x_y_by_url_and_session_id
+# 功能：根据项目ID、会话ID和URL获取该会话中发生的点击事件的坐标数据。
+# 参数：
+# - project_id: 项目ID。
+# - session_id: 会话ID。
+# - data: schemas.GetHeatMapPayloadSchema类型，包含URL等过滤条件。
+# 返回值：
+# - 返回点击事件的坐标列表。
 def get_x_y_by_url_and_session_id(project_id, session_id, data: schemas.GetHeatMapPayloadSchema):
     args = {"session_id": session_id, "url": data.url}
     constraints = ["session_id = %(session_id)s",
@@ -107,7 +122,14 @@ def get_x_y_by_url_and_session_id(project_id, session_id, data: schemas.GetHeatM
 
     return helper.list_to_camel_case(rows)
 
-
+# 函数：get_selectors_by_url_and_session_id
+# 功能：根据项目ID、会话ID和URL获取该会话中发生的点击事件的选择器信息，并统计每个选择器的点击次数。
+# 参数：
+# - project_id: 项目ID。
+# - session_id: 会话ID。
+# - data: schemas.GetHeatMapPayloadSchema类型，包含URL等过滤条件。
+# 返回值：
+# - 返回选择器及其点击次数的列表。
 def get_selectors_by_url_and_session_id(project_id, session_id, data: schemas.GetHeatMapPayloadSchema):
     args = {"session_id": session_id, "url": data.url}
     constraints = ["session_id = %(session_id)s",
@@ -136,13 +158,23 @@ def get_selectors_by_url_and_session_id(project_id, session_id, data: schemas.Ge
 
     return helper.list_to_camel_case(rows)
 
-
+# 定义会话投影列，用于简化会话数据的选择
 SESSION_PROJECTION_COLS = """s.project_id,
 s.session_id::text AS session_id,
 s.start_ts,
 s.duration"""
 
-
+# 函数：search_short_session
+# 功能：搜索符合条件的简短会话，用于生成点击热力图时使用。
+# 参数：
+# - data: schemas.HeatMapSessionsSearch类型，包含过滤条件和排序方式。
+# - project_id: 项目ID。
+# - user_id: 用户ID。
+# - include_mobs: 是否包括移动端数据，默认为True。
+# - exclude_sessions: 要排除的会话ID列表。
+# - _depth: 搜索深度，默认为3。
+# 返回值：
+# - 返回一个符合条件的简短会话数据。
 def search_short_session(data: schemas.HeatMapSessionsSearch, project_id, user_id,
                          include_mobs: bool = True, exclude_sessions: list[str] = [],
                          _depth: int = 3):
@@ -219,7 +251,13 @@ def search_short_session(data: schemas.HeatMapSessionsSearch, project_id, user_i
 
     return helper.dict_to_camel_case(session)
 
-
+# 函数：get_selected_session
+# 功能：获取指定会话的详细信息，用于生成点击热力图时使用。
+# 参数：
+# - project_id: 项目ID。
+# - session_id: 会话ID。
+# 返回值：
+# - 返回会话的详细信息，包括页面事件和移动端相关数据。
 def get_selected_session(project_id, session_id):
     with pg_client.PostgresClient() as cur:
         main_query = cur.mogrify(f"""SELECT {SESSION_PROJECTION_COLS}
@@ -248,6 +286,13 @@ def get_selected_session(project_id, session_id):
     return helper.dict_to_camel_case(session)
 
 
+# 函数：get_page_events
+# 功能：获取指定会话的页面事件数据。
+# 参数：
+# - session_id: 会话ID。
+# - project_id: 项目ID。
+# 返回值：
+# - 返回页面事件的详细信息列表。
 def get_page_events(session_id, project_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(cur.mogrify("""\
@@ -265,3 +310,5 @@ def get_page_events(session_id, project_id):
         rows = cur.fetchall()
         rows = helper.list_to_camel_case(rows)
     return rows
+
+# 该代码模块主要用于处理和分析热力图数据，帮助用户可视化网页上的点击行为。通过查询数据库中的点击事件和会话数据，该模块提供了生成点击热力图和获取特定会话详细信息的功能。

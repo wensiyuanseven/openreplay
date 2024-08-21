@@ -1,34 +1,50 @@
+# 这些函数主要用于生成各种通知和报告的 HTML 邮件。它们通过读取 HTML 模板文件，并使用传入的数据进行格式化，然后使用 send_html 函数发送邮件。
+# 这种方法使得邮件内容的生成非常灵活，并且可以根据需求轻松更改模板或数据。
 from chalicelib.utils.TimeUTC import TimeUTC
 from chalicelib.utils.email_handler import __get_html_from_file, send_html
 
 
+# 这个函数用于发送团队邀请邮件。
+# 它从 invitation.html 文件中获取模板，并将 invitationLink、clientId 和 sender 作为变量插入。
+# 邮件主题是 "Welcome to OpenReplay"，并发送给指定的收件人。
 def send_team_invitation(recipient, client_id, sender_name, invitation_link):
     BODY_HTML = __get_html_from_file("chalicelib/utils/html/invitation.html", formatting_variables={"invitationLink": invitation_link, "clientId": client_id, "sender": sender_name})
     SUBJECT = "Welcome to OpenReplay"
     send_html(BODY_HTML, SUBJECT, recipient)
 
-
+# 这个函数用于发送忘记密码的恢复邮件。
+# 它从 reset_password.html 文件中获取模板，并插入 invitationLink 变量。
+# 邮件主题是 "Password recovery"，并发送给指定的收件人。
 def send_forgot_password(recipient, invitation_link):
     BODY_HTML = __get_html_from_file("chalicelib/utils/html/reset_password.html", formatting_variables={"invitationLink": invitation_link})
     SUBJECT = "Password recovery"
     send_html(BODY_HTML, SUBJECT, recipient)
 
-
+# 这个函数用于发送会话分配的通知邮件。
+# 它从 assignment.html 文件中获取模板，并插入 message、当前时间 now 和 link 变量。
+# 邮件主题是 "assigned session"，并发送给指定的收件人。
 def send_assign_session(recipient, message, link):
     BODY_HTML = __get_html_from_file("chalicelib/utils/html/assignment.html", formatting_variables={"message": message, "now": TimeUTC.to_human_readable(TimeUTC.now()), "link": link})
     SUBJECT = "assigned session"
     send_html(BODY_HTML, SUBJECT, recipient)
 
-
+# 这个函数用于发送警告通知邮件。
+# 它从 alert_notification.html 文件中获取模板，并插入 data 字典中的变量。
+# 邮件主题是传入的 subject，并发送给指定的收件人。
 def alert_email(recipients, subject, data):
     BODY_HTML = __get_html_from_file("chalicelib/utils/html/alert_notification.html", formatting_variables=data)
     send_html(BODY_HTML=BODY_HTML, SUBJECT=subject, recipient=recipients)
 
-
+# 这是一个私有函数，用于根据索引返回不同的颜色值。
+# 通常用于在生成报告时为不同类型的条目赋予不同的颜色。
 def __get_color(idx):
     return "#3EAAAF" if idx == 0 else "#77C3C7" if idx == 1 else "#9ED4D7" if idx == 2 else "#99d59a"
 
-
+# 这个函数用于生成并发送项目的每周报告邮件。
+# 它使用传入的 data 生成报告内容，包括图表、趋势图等。
+# __get_color 函数被用于为不同类型的数据生成颜色。
+# 最终的 HTML 内容从 Project-Weekly-Report.html 文件中获取，并通过插入 data 中的变量进行格式化。
+# 邮件主题是 "OpenReplay Project Weekly Report"，并发送给指定的收件人。
 def weekly_report2(recipients, data):
     data["o_tr_u"] = ""
     data["o_tr_d"] = ""

@@ -1,3 +1,5 @@
+# 这段代码实现了与会话（sessions）相关的多种查询功能，包括会话搜索、按元数据搜索、检查会话录制状态、检查特定会话是否存在，以及获取会话用户信息等。
+# 代码通过SQL查询与PostgreSQL数据库交互，使用各种过滤条件和选项来优化查询结果。整体上，这些函数被设计为高效地管理和显示会话数据，并支持不同的查询需求。
 import logging
 from typing import List, Union
 
@@ -7,7 +9,7 @@ from chalicelib.utils import pg_client, helper, metrics_helper
 from chalicelib.utils import sql_helper as sh
 
 logger = logging.getLogger(__name__)
-
+# SESSION_PROJECTION_BASE_COLS: 这个常量定义了会话查询中默认要选择的列，这些列包含会话的基本信息，如项目ID、会话ID、用户设备信息、会话开始时间、持续时间、错误计数等。
 SESSION_PROJECTION_BASE_COLS = """s.project_id,
 s.session_id::text AS session_id,
 s.user_uuid,
@@ -29,7 +31,7 @@ s.platform,
 s.issue_score,
 s.timezone,
 to_jsonb(s.issue_types) AS issue_types """
-
+# SESSION_PROJECTION_COLS: 在基础列的基础上，添加了是否被收藏（favorite）和是否被查看（viewed）的信息，用于扩展查询的结果。
 SESSION_PROJECTION_COLS = SESSION_PROJECTION_BASE_COLS + """,
 favorite_sessions.session_id NOTNULL            AS favorite,
 COALESCE((SELECT TRUE
@@ -37,7 +39,19 @@ COALESCE((SELECT TRUE
  WHERE s.session_id = fs.session_id
    AND fs.user_id = %(userId)s LIMIT 1), FALSE) AS viewed """
 
-
+# 执行会话搜索查询并返回结果。
+# 参数：
+# - data: schemas.SessionsSearchPayloadSchema类型，包含搜索条件的对象。
+# - project_id: 项目ID，用于标识数据所属的项目。
+# - user_id: 用户ID，用于标识执行搜索的用户。
+# - errors_only: bool类型，是否只搜索有错误的会话。
+# - error_status: schemas.ErrorStatus类型，指定错误的状态。
+# - count_only: bool类型，是否只返回会话计数。
+# - issue: 搜索特定问题的标识符。
+# - ids_only: bool类型，是否只返回会话ID。
+# - platform: 平台类型，默认为“web”。
+# 返回值：
+# - dict: 包含会话搜索结果的字典对象。
 # This function executes the query and return result
 def search_sessions(data: schemas.SessionsSearchPayloadSchema, project_id, user_id, errors_only=False,
                     error_status=schemas.ErrorStatus.all, count_only=False, issue=None, ids_only=False,
@@ -168,7 +182,17 @@ def search_sessions(data: schemas.SessionsSearchPayloadSchema, project_id, user_
         'sessions': helper.list_to_camel_case(sessions)
     }
 
-
+# 搜索会话并根据指定的时间序列或表格数据返回结果。
+# 参数：
+# - data: schemas.SessionsSearchPayloadSchema类型，包含搜索条件的对象。
+# - project_id: 项目ID，用于标识数据所属的项目。
+# - density: int类型，指定时间序列数据的密度。
+# - view_type: schemas.MetricTimeseriesViewType类型，指定返回结果的视图类型（如折线图）。
+# - metric_type: schemas.MetricType类型，指定要计算的度量类型（如时间序列或表格数据）。
+# - metric_of: schemas.MetricOfTable类型，指定要计算的度量指标（如会话数、用户数）。
+# - metric_value: List类型，指定过滤条件的值列表。
+# 返回值：
+# - dict: 包含搜索结果的字典对象。
 # TODO: remove "table of" search from this function
 def search2_series(data: schemas.SessionsSearchPayloadSchema, project_id: int, density: int,
                    view_type: schemas.MetricTimeseriesViewType, metric_type: schemas.MetricType,
@@ -294,7 +318,16 @@ def search2_series(data: schemas.SessionsSearchPayloadSchema, project_id: int, d
 
         return sessions
 
-
+# 搜索并返回表格格式的会话数据。
+# 参数：
+# - data: schemas.SessionsSearchPayloadSchema类型，包含搜索条件的对象。
+# - project_id: 项目ID，用于标识数据所属的项目。
+# - density: int类型，指定时间序列数据的密度。
+# - metric_of: schemas.MetricOfTable类型，指定要计算的度量指标（如用户国家、设备等）。
+# - metric_value: List类型，指定要过滤的度量值列表。
+# - metric_format: schemas.MetricExtendedFormatType类型，指定返回数据的格式（如会话计数或用户计数）。
+# 返回值：
+# - dict: 包含搜索结果的字典对象，按指定的分组进行统计。
 def search2_table(data: schemas.SessionsSearchPayloadSchema, project_id: int, density: int,
                   metric_of: schemas.MetricOfTable, metric_value: List,
                   metric_format: Union[schemas.MetricExtendedFormatType, schemas.MetricExtendedFormatType]):
@@ -409,7 +442,12 @@ def search2_table(data: schemas.SessionsSearchPayloadSchema, project_id: int, de
 
         return sessions
 
-
+# 搜索并返回按问题分组的会话表格数据。
+# 参数：
+# - data: schemas.SessionsSearchPayloadSchema类型，包含搜索条件的对象。
+# - project_id: 项目ID，用于标识数据所属的项目。
+# 返回值：
+# - dict: 包含搜索结果的字典对象。
 def search_table_of_individual_issues(data: schemas.SessionsSearchPayloadSchema, project_id: int):
     full_args, query_part = search_query_parts(data=data, error_status=None, errors_only=False,
                                                favorite_only=False, issue=None, project_id=project_id,
@@ -446,7 +484,16 @@ def search_table_of_individual_issues(data: schemas.SessionsSearchPayloadSchema,
 
         return sessions
 
+# 功能描述:
+# 该函数用于检查特定的事件对象是否有效。事件对象必须满足特定条件才能被视为有效，例如事件的值和源信息是否正确设置。
 
+# 参数:
+
+# is_any: bool 类型，指示该事件的操作符是否为 "ANY" 操作符，表示无条件匹配。
+# event: schemas.SessionSearchEventSchema2 类型，表示要验证的事件对象。
+# 返回值:
+
+# bool: 如果事件被视为有效，则返回 True，否则返回 False。
 def __is_valid_event(is_any: bool, event: schemas.SessionSearchEventSchema2):
     return not (not is_any and len(event.value) == 0 and event.type not in [schemas.EventType.request_details,
                                                                             schemas.EventType.graphql] \
@@ -460,6 +507,26 @@ def __is_valid_event(is_any: bool, event: schemas.SessionSearchEventSchema2):
                         event.filters is None or len(event.filters) == 0))
 
 
+# 功能描述:
+# 该函数用于根据提供的搜索条件生成 SQL 查询片段和相关参数。这些搜索条件包括各种过滤器、事件、错误状态等。生成的 SQL 查询用于在数据库中搜索符合条件的会话数据。
+
+# 参数:
+
+# data: schemas.SessionsSearchPayloadSchema 类型，包含会话搜索的所有条件。
+# error_status: 指定错误状态的条件，具体取决于 schemas.ErrorStatus 类型。
+# errors_only: bool 类型，指示是否只搜索包含错误的会话。
+# favorite_only: bool 类型，指示是否只搜索被收藏的会话。
+# issue: 指定搜索特定问题的标识符，可能是 None。
+# project_id: 项目 ID，指定搜索的范围。
+# user_id: 用户 ID，用于标识执行搜索的用户。
+# platform: 平台类型，默认为 "web"，指定搜索的会话所属的平台。
+# extra_event: 额外的事件过滤器，可能是 None。
+# extra_conditions: 额外的条件过滤器，可能是 None。
+# 返回值:
+
+# tuple: 包含两个元素：
+# full_args: 一个字典，包含所有 SQL 查询所需的参数。
+# query_part: 生成的 SQL 查询片段，用于执行会话搜索。
 # this function generates the query and return the generated-query with the dict of query arguments
 def search_query_parts(data: schemas.SessionsSearchPayloadSchema, error_status, errors_only, favorite_only, issue,
                        project_id, user_id, platform="web", extra_event=None, extra_conditions=None):
@@ -1177,7 +1244,16 @@ def search_query_parts(data: schemas.SessionsSearchPayloadSchema, error_status, 
                           {" AND ".join(extra_constraints)}"""
     return full_args, query_part
 
-
+# 功能描述:
+# 该函数用于根据指定的元数据键值对（m_key 和 m_value），在特定的项目中或所有项目中搜索用户的会话记录，并返回包含会话数量和会话详细信息的结果。
+# 参数:
+# tenant_id: 租户 ID，用于标识租户范围。
+# user_id: 用户 ID，用于标识用户。
+# m_key: 元数据键，用于过滤会话的元数据字段。
+# m_value: 元数据值，用于匹配元数据字段的值。
+# project_id: 可选，项目 ID，用于限制搜索范围到特定项目。
+# 返回值:
+# dict: 包含每个项目的搜索结果，包括会话总数、会话详细信息以及是否缺少元数据。
 def search_by_metadata(tenant_id, user_id, m_key, m_value, project_id=None):
     if project_id is None:
         all_projects = projects.get_projects(tenant_id=tenant_id)
@@ -1240,7 +1316,17 @@ def search_by_metadata(tenant_id, user_id, m_key, m_value, project_id=None):
                     results[str(i["project_id"])]["sessions"].append(helper.dict_to_camel_case(i))
     return results
 
+# 功能描述:
+# 该函数用于获取特定用户在指定项目中、在给定时间范围内的会话记录。
 
+# 参数:
+
+# project_id: 项目 ID，用于限定搜索范围。
+# user_id: 用户 ID，用于标识要查询的用户。
+# start_date: 开始时间戳，用于过滤会话记录的起始时间。
+# end_date: 结束时间戳，用于过滤会话记录的结束时间。
+# 返回值:
+# list: 包含指定用户会话记录的列表，每条记录包含会话的详细信息。
 def get_user_sessions(project_id, user_id, start_date, end_date):
     with pg_client.PostgresClient() as cur:
         constraints = ["s.project_id = %(projectId)s", "s.user_id = %(userId)s"]
@@ -1279,7 +1365,16 @@ def get_user_sessions(project_id, user_id, start_date, end_date):
         sessions = cur.fetchall()
     return helper.list_to_camel_case(sessions)
 
+# 功能描述:
+# 该函数用于获取某个用户在特定项目中的会话统计信息，包括会话数量、首次和最近一次会话的时间。
 
+# 参数:
+
+# project_id: 项目 ID，用于限定搜索范围。
+# user_id: 用户 ID，用于标识要查询的用户。
+# 返回值:
+
+# dict: 包含用户的会话统计信息，例如会话数量、最后一次会话时间等。
 def get_session_user(project_id, user_id):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(
@@ -1303,14 +1398,31 @@ def get_session_user(project_id, user_id):
         data = cur.fetchone()
     return helper.dict_to_camel_case(data)
 
+# 功能描述:
+# 该函数用于统计数据库中所有会话记录的数量。
 
+# 参数:
+
+# 无参数。
+# 返回值:
+
+# int: 会话记录的总数。
 def count_all():
     with pg_client.PostgresClient(unlimited_query=True) as cur:
         cur.execute(query="SELECT COUNT(session_id) AS count FROM public.sessions")
         row = cur.fetchone()
     return row.get("count", 0) if row else 0
 
+# 功能描述:
+# 该函数用于检查特定会话记录是否存在于指定的项目中。
 
+# 参数:
+
+# project_id: 项目 ID，用于限定搜索范围。
+# session_id: 会话 ID，用于标识要检查的会话。
+# 返回值:
+
+# bool: 如果会话存在，返回 True，否则返回 False。
 def session_exists(project_id, session_id):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify("""SELECT 1 
@@ -1323,7 +1435,15 @@ def session_exists(project_id, session_id):
         row = cur.fetchone()
     return row is not None
 
+# 功能描述:
+# 该函数用于检查特定项目的会话录制状态，返回录制状态和会话数量。
 
+# 参数:
+
+# project_id: 项目 ID，用于限定检查的范围。
+# 返回值:
+
+# dict: 包含录制状态和会话数量的信息。
 def check_recording_status(project_id: int) -> dict:
     query = f"""
         WITH project_sessions AS (SELECT COUNT(1)                                      AS full_count,
@@ -1351,7 +1471,18 @@ def check_recording_status(project_id: int) -> dict:
         "sessionsCount": row["sessions_count"]
     }
 
+# 功能描述:
+# 该函数用于根据会话 ID 列表搜索特定项目中的会话记录，并按指定字段排序。
 
+# 参数:
+
+# project_id: 项目 ID，用于限定搜索范围。
+# session_ids: 会话 ID 列表，用于限定要查询的会话记录。
+# sort_by: 排序字段，默认为 session_id。
+# ascending: 排序顺序，默认为降序。
+# 返回值:
+
+# dict: 包含符合条件的会话记录及其数量。
 def search_sessions_by_ids(project_id: int, session_ids: list, sort_by: str = 'session_id',
                            ascending: bool = False) -> dict:
     if session_ids is None or len(session_ids) == 0:

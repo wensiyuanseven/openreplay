@@ -1,3 +1,5 @@
+# 这段代码实现了一个笔记管理模块，主要功能包括创建、编辑、删除、获取和共享笔记。笔记与用户、项目和会话相关联，支持通过Slack和Microsoft Teams进行笔记共享。代码主要通过数据库查询实现笔记的CRUD（创建、读取、更新、删除）操作，并且支持根据特定条件检索笔记。
+# 同时，该模块可以将笔记以特定格式分享到Slack和Microsoft Teams上。
 import logging
 from urllib.parse import urljoin
 
@@ -12,7 +14,15 @@ from chalicelib.utils.TimeUTC import TimeUTC
 
 logger = logging.getLogger(__name__)
 
-
+# 获取指定项目中的单个笔记。
+# 参数：
+# - tenant_id: 租户ID，用于区分多租户数据。
+# - project_id: 项目ID，用于标识数据所属的项目。
+# - user_id: 用户ID，用于识别请求该笔记的用户。
+# - note_id: 笔记ID，用于查找特定的笔记。
+# - share: 可选参数，指定共享的用户ID。
+# 返回值：
+# - row: 包含笔记详细信息的字典对象，键值为驼峰命名格式。
 def get_note(tenant_id, project_id, user_id, note_id, share=None):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""SELECT sessions_notes.*, users.name AS user_name
@@ -32,7 +42,14 @@ def get_note(tenant_id, project_id, user_id, note_id, share=None):
             row["createdAt"] = TimeUTC.datetime_to_timestamp(row["createdAt"])
     return row
 
-
+# 获取指定会话的所有笔记。
+# 参数：
+# - tenant_id: 租户ID，用于区分多租户数据。
+# - project_id: 项目ID，用于标识数据所属的项目。
+# - session_id: 会话ID，用于标识所属会话。
+# - user_id: 用户ID，用于识别请求笔记的用户。
+# 返回值：
+# - rows: 包含所有笔记信息的列表，每个元素为字典对象，键值为驼峰命名格式。
 def get_session_notes(tenant_id, project_id, session_id, user_id):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""SELECT sessions_notes.*, users.name AS user_name
@@ -53,7 +70,14 @@ def get_session_notes(tenant_id, project_id, session_id, user_id):
             row["createdAt"] = TimeUTC.datetime_to_timestamp(row["createdAt"])
     return rows
 
-
+# 根据项目ID获取所有笔记。
+# 参数：
+# - tenant_id: 租户ID，用于区分多租户数据。
+# - project_id: 项目ID，用于标识数据所属的项目。
+# - user_id: 用户ID，用于识别请求笔记的用户。
+# - data: schemas.SearchNoteSchema类型，包含搜索条件的模式对象。
+# 返回值：
+# - result: 包含笔记总数和笔记列表的字典对象。
 def get_all_notes_by_project_id(tenant_id, project_id, user_id, data: schemas.SearchNoteSchema):
     with pg_client.PostgresClient() as cur:
         conditions = ["sessions_notes.project_id = %(project_id)s", "sessions_notes.deleted_at IS NULL"]
@@ -86,6 +110,15 @@ def get_all_notes_by_project_id(tenant_id, project_id, user_id, data: schemas.Se
             row.pop("fullCount")
     return result
 
+# 创建新的笔记。
+# 参数：
+# - tenant_id: 租户ID，用于区分多租户数据。
+# - user_id: 用户ID，用于标识笔记创建者。
+# - project_id: 项目ID，用于标识笔记所属的项目。
+# - session_id: 会话ID，用于标识笔记所属的会话。
+# - data: schemas.SessionNoteSchema类型，包含笔记内容的模式对象。
+# 返回值：
+# - result: 包含新创建的笔记详细信息的字典对象，键值为驼峰命名格式。
 
 def create(tenant_id, user_id, project_id, session_id, data: schemas.SessionNoteSchema):
     with pg_client.PostgresClient() as cur:
@@ -100,7 +133,15 @@ def create(tenant_id, user_id, project_id, session_id, data: schemas.SessionNote
             result["createdAt"] = TimeUTC.datetime_to_timestamp(result["createdAt"])
     return result
 
-
+# 编辑现有的笔记。
+# 参数：
+# - tenant_id: 租户ID，用于区分多租户数据。
+# - user_id: 用户ID，用于识别请求编辑的用户。
+# - project_id: 项目ID，用于标识笔记所属的项目。
+# - note_id: 笔记ID，用于查找要编辑的笔记。
+# - data: schemas.SessionUpdateNoteSchema类型，包含要更新的笔记内容的模式对象。
+# 返回值：
+# - row: 包含更新后笔记详细信息的字典对象，键值为驼峰命名格式。
 def edit(tenant_id, user_id, project_id, note_id, data: schemas.SessionUpdateNoteSchema):
     sub_query = []
     if data.message is not None:
@@ -130,7 +171,12 @@ def edit(tenant_id, user_id, project_id, note_id, data: schemas.SessionUpdateNot
             return row
         return {"errors": ["Note not found"]}
 
-
+# 删除指定的笔记。
+# 参数：
+# - project_id: 项目ID，用于标识笔记所属的项目。
+# - note_id: 笔记ID，用于查找要删除的笔记。
+# 返回值：
+# - data: 包含删除状态的字典对象。
 def delete(project_id, note_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -143,7 +189,15 @@ def delete(project_id, note_id):
         )
         return {"data": {"state": "success"}}
 
-
+# 将指定的笔记分享至Slack。
+# 参数：
+# - tenant_id: 租户ID，用于区分多租户数据。
+# - user_id: 用户ID，用于识别请求共享的用户。
+# - project_id: 项目ID，用于标识笔记所属的项目。
+# - note_id: 笔记ID，用于查找要共享的笔记。
+# - webhook_id: Slack Webhook ID，用于发送消息至指定的Slack频道。
+# 返回值：
+# - 发送状态的字典对象。
 def share_to_slack(tenant_id, user_id, project_id, note_id, webhook_id):
     note = get_note(tenant_id=tenant_id, project_id=project_id, user_id=user_id, note_id=note_id, share=user_id)
     if note is None:
@@ -175,7 +229,15 @@ def share_to_slack(tenant_id, user_id, project_id, note_id, webhook_id):
         body={"blocks": blocks}
     )
 
-
+# 将指定的笔记分享至Microsoft Teams。
+# 参数：
+# - tenant_id: 租户ID，用于区分多租户数据。
+# - user_id: 用户ID，用于识别请求共享的用户。
+# - project_id: 项目ID，用于标识笔记所属的项目。
+# - note_id: 笔记ID，用于查找要共享的笔记。
+# - webhook_id: Microsoft Teams Webhook ID，用于发送消息至指定的Teams频道。
+# 返回值：
+# - 发送状态的字典对象。
 def share_to_msteams(tenant_id, user_id, project_id, note_id, webhook_id):
     note = get_note(tenant_id=tenant_id, project_id=project_id, user_id=user_id, note_id=note_id, share=user_id)
     if note is None:

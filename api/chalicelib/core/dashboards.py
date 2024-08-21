@@ -1,12 +1,20 @@
+# 这段代码实现了一个与仪表盘管理相关的API模块。通过定义一系列函数，代码能够处理仪表盘的创建、更新、删除、获取以及仪表盘小部件（widgets）的增删改查操作。
+# 代码的设计支持在仪表盘中添加和管理不同的指标（metrics），并且能够将指标卡片转换为可视化的图表。
 import json
-
 import schemas
 from chalicelib.core import custom_metrics
 from chalicelib.utils import helper
 from chalicelib.utils import pg_client
 from chalicelib.utils.TimeUTC import TimeUTC
 
-
+# 函数：create_dashboard
+# 功能：创建一个新的仪表盘，并可选择添加与之关联的小部件（widgets）。
+# 参数：
+# - project_id: 项目ID，指定数据的项目。
+# - user_id: 用户ID，指定请求数据的用户。
+# - data: schemas.CreateDashboardSchema类型，包含新建仪表盘的配置信息和小部件列表。
+# 返回值：
+# - 如果成功，返回创建的仪表盘的详细信息；否则返回错误信息。
 def create_dashboard(project_id, user_id, data: schemas.CreateDashboardSchema):
     with pg_client.PostgresClient() as cur:
         pg_query = f"""INSERT INTO dashboards(project_id, user_id, name, is_public, is_pinned, description) 
@@ -31,7 +39,13 @@ def create_dashboard(project_id, user_id, data: schemas.CreateDashboardSchema):
         return {"errors": ["something went wrong while creating the dashboard"]}
     return {"data": get_dashboard(project_id=project_id, user_id=user_id, dashboard_id=row["dashboard_id"])}
 
-
+# 函数：get_dashboards
+# 功能：获取指定项目和用户的所有仪表盘信息。
+# 参数：
+# - project_id: 项目ID，指定数据的项目。
+# - user_id: 用户ID，指定请求数据的用户。
+# 返回值：
+# - 返回所有符合条件的仪表盘列表。
 def get_dashboards(project_id, user_id):
     with pg_client.PostgresClient() as cur:
         pg_query = f"""SELECT *, owner_email, owner_name
@@ -49,7 +63,14 @@ def get_dashboards(project_id, user_id):
         rows = cur.fetchall()
     return helper.list_to_camel_case(rows)
 
-
+# 函数：get_dashboard
+# 功能：获取指定的仪表盘详细信息，包括与之关联的小部件。
+# 参数：
+# - project_id: 项目ID，指定数据的项目。
+# - user_id: 用户ID，指定请求数据的用户。
+# - dashboard_id: 仪表盘ID，指定要获取的仪表盘。
+# 返回值：
+# - 返回仪表盘的详细信息和关联的小部件列表。
 def get_dashboard(project_id, user_id, dashboard_id):
     with pg_client.PostgresClient() as cur:
         pg_query = """SELECT dashboards.*, all_metric_widgets.widgets AS widgets
@@ -96,7 +117,14 @@ def get_dashboard(project_id, user_id, dashboard_id):
                     s["created_at"] = TimeUTC.datetime_to_timestamp(s["created_at"])
     return helper.dict_to_camel_case(row)
 
-
+# 函数：delete_dashboard
+# 功能：删除指定的仪表盘，将其标记为删除并更新删除时间。
+# 参数：
+# - project_id: 项目ID，指定数据的项目。
+# - user_id: 用户ID，指定请求数据的用户。
+# - dashboard_id: 仪表盘ID，指定要删除的仪表盘。
+# 返回值：
+# - 返回成功删除的状态信息
 def delete_dashboard(project_id, user_id, dashboard_id):
     with pg_client.PostgresClient() as cur:
         pg_query = """UPDATE dashboards
@@ -108,7 +136,15 @@ def delete_dashboard(project_id, user_id, dashboard_id):
         cur.execute(cur.mogrify(pg_query, params))
     return {"data": {"success": True}}
 
-
+# 函数：update_dashboard
+# 功能：更新指定的仪表盘信息，可以选择修改名称、描述、是否公开、是否固定等属性，并可添加新的小部件。
+# 参数：
+# - project_id: 项目ID，指定数据的项目。
+# - user_id: 用户ID，指定请求数据的用户。
+# - dashboard_id: 仪表盘ID，指定要更新的仪表盘。
+# - data: schemas.EditDashboardSchema类型，包含更新的仪表盘信息。
+# 返回值：
+# - 返回更新后的仪表盘的详细信息。
 def update_dashboard(project_id, user_id, dashboard_id, data: schemas.EditDashboardSchema):
     with pg_client.PostgresClient() as cur:
         pg_query = """SELECT COALESCE(COUNT(*),0) AS count
@@ -148,7 +184,21 @@ def update_dashboard(project_id, user_id, dashboard_id, data: schemas.EditDashbo
             row["created_at"] = TimeUTC.datetime_to_timestamp(row["created_at"])
     return helper.dict_to_camel_case(row)
 
-
+# 函数：get_widget
+# 功能：
+# get_widget 函数用于获取指定仪表盘小部件的详细信息，包括与之关联的指标（metrics）及其系列数据（series）。
+# 参数：
+# project_id: int
+# 项目ID，指定要查询的数据所属的项目。
+# user_id: int
+# 用户ID，指定请求数据的用户。
+# dashboard_id: int
+# 仪表盘ID，指定该小部件所属的仪表盘。
+# widget_id: int
+# 小部件ID，指定要查询的小部件。
+# 返回值：
+# dict
+# 返回包含小部件及其关联的指标和系列数据的详细信息，数据经过驼峰命名转换以适应前端使用。
 def get_widget(project_id, user_id, dashboard_id, widget_id):
     with pg_client.PostgresClient() as cur:
         pg_query = """SELECT metrics.*, metric_series.series
@@ -172,7 +222,15 @@ def get_widget(project_id, user_id, dashboard_id, widget_id):
         row = cur.fetchone()
     return helper.dict_to_camel_case(row)
 
-
+# 函数：add_widget
+# 功能：向指定的仪表盘中添加一个新的小部件（widget），并将其与指定的指标（metric）关联。
+# 参数：
+# - project_id: 项目ID，指定数据的项目。
+# - user_id: 用户ID，指定请求数据的用户。
+# - dashboard_id: 仪表盘ID，指定要添加小部件的仪表盘。
+# - data: schemas.AddWidgetToDashboardPayloadSchema类型，包含新小部件的配置信息和关联指标。
+# 返回值：
+# - 返回添加的小部件的详细信息。
 def add_widget(project_id, user_id, dashboard_id, data: schemas.AddWidgetToDashboardPayloadSchema):
     with pg_client.PostgresClient() as cur:
         pg_query = """INSERT INTO dashboard_widgets(dashboard_id, metric_id, user_id, config)
@@ -189,21 +247,37 @@ def add_widget(project_id, user_id, dashboard_id, data: schemas.AddWidgetToDashb
         row = cur.fetchone()
     return helper.dict_to_camel_case(row)
 
-
+# 函数：update_widget
+# 功能：更新指定的仪表盘小部件的配置信息。
+# 参数：
+# - project_id: 项目ID，指定数据的项目。
+# - user_id: 用户ID，指定请求数据的用户。
+# - dashboard_id: 仪表盘ID，指定小部件所属的仪表盘。
+# - widget_id: 小部件ID，指定要更新的小部件。
+# - data: schemas.UpdateWidgetPayloadSchema类型，包含更新的小部件配置信息。
+# 返回值：
+# - 返回更新后的小部件详细信息。
 def update_widget(project_id, user_id, dashboard_id, widget_id, data: schemas.UpdateWidgetPayloadSchema):
     with pg_client.PostgresClient() as cur:
         pg_query = """UPDATE dashboard_widgets
                       SET config= %(config)s
                       WHERE dashboard_id=%(dashboard_id)s AND widget_id=%(widget_id)s
                       RETURNING *;"""
-        params = {"userId": user_id, "projectId": project_id, "dashboard_id": dashboard_id,
-                  "widget_id": widget_id, **data.model_dump()}
+        params = {"userId": user_id, "projectId": project_id, "dashboard_id": dashboard_id, "widget_id": widget_id, **data.model_dump()}
         params["config"] = json.dumps(data.config)
         cur.execute(cur.mogrify(pg_query, params))
         row = cur.fetchone()
     return helper.dict_to_camel_case(row)
 
-
+# 函数：remove_widget
+# 功能：从指定的仪表盘中移除一个小部件。
+# 参数：
+# - project_id: 项目ID，指定数据的项目。
+# - user_id: 用户ID，指定请求数据的用户。
+# - dashboard_id: 仪表盘ID，指定要移除小部件的仪表盘。
+# - widget_id: 小部件ID，指定要移除的小部件。
+# 返回值：
+# - 返回成功移除的状态信息。
 def remove_widget(project_id, user_id, dashboard_id, widget_id):
     with pg_client.PostgresClient() as cur:
         pg_query = """DELETE FROM dashboard_widgets
@@ -212,7 +286,14 @@ def remove_widget(project_id, user_id, dashboard_id, widget_id):
         cur.execute(cur.mogrify(pg_query, params))
     return {"data": {"success": True}}
 
-
+# 函数：pin_dashboard
+# 功能：将指定的仪表盘设为固定（pin），同时取消其他仪表盘的固定状态。
+# 参数：
+# - project_id: 项目ID，指定数据的项目。
+# - user_id: 用户ID，指定请求数据的用户。
+# - dashboard_id: 仪表盘ID，指定要固定的仪表盘。
+# 返回值：
+# - 返回固定后的仪表盘详细信息
 def pin_dashboard(project_id, user_id, dashboard_id):
     with pg_client.PostgresClient() as cur:
         pg_query = """UPDATE dashboards
@@ -227,11 +308,19 @@ def pin_dashboard(project_id, user_id, dashboard_id):
         row = cur.fetchone()
     return helper.dict_to_camel_case(row)
 
-
+# 函数：create_metric_add_widget
+# 功能：创建新的指标卡片并将其添加为仪表盘的小部件。
+# 参数：
+# - project_id: 项目ID，指定数据的项目。
+# - user_id: 用户ID，指定请求数据的用户。
+# - dashboard_id: 仪表盘ID，指定要添加小部件的仪表盘。
+# - data: schemas.CardSchema类型，包含新建指标的配置信息。
+# 返回值：
+# - 返回创建的小部件的详细信息。
 def create_metric_add_widget(project_id, user_id, dashboard_id, data: schemas.CardSchema):
     metric_id = custom_metrics.create_card(project_id=project_id, user_id=user_id, data=data, dashboard=True)
-    return add_widget(project_id=project_id, user_id=user_id, dashboard_id=dashboard_id,
-                      data=schemas.AddWidgetToDashboardPayloadSchema(metricId=metric_id))
+    return add_widget(project_id=project_id, user_id=user_id, dashboard_id=dashboard_id, data=schemas.AddWidgetToDashboardPayloadSchema(metricId=metric_id))
+
 
 # def make_chart_widget(dashboard_id, project_id, user_id, widget_id, data: schemas.CardChartSchema):
 #     raw_metric = get_widget(widget_id=widget_id, project_id=project_id, user_id=user_id, dashboard_id=dashboard_id)

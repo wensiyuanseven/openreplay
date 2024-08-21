@@ -1,3 +1,4 @@
+# 该文件主要处理与项目数据分析相关的各种计算和数据获取操作。这些操作涉及项目数据的分位数计算、约束条件的生成以及其他与时间、项目ID等相关的统计操作。
 import math
 
 import schemas
@@ -8,7 +9,13 @@ from chalicelib.utils import pg_client
 from chalicelib.utils.TimeUTC import TimeUTC
 from chalicelib.utils.metrics_helper import __get_step_size
 
-
+# 计算数据的分位数。
+# 参数：
+# - a: 列表，包含要计算分位数的数据。
+# - q: 分位数列表或单个值，表示要计算的分位数。
+# - interpolation: 插值方法，默认值为 "higher"。用于确定当分位数位置不精确时采用的处理方法。
+# 返回值：
+# - 返回计算出的分位数值，类型与q一致。
 # Written by David Aznaurov, inspired by numpy.quantile
 def __quantiles(a, q, interpolation="higher"):
     arr = a.copy()
@@ -27,7 +34,19 @@ def __quantiles(a, q, interpolation="higher"):
     else:
         return arr[ind]
 
-
+# 根据项目ID和其他条件生成SQL查询的约束子句。
+# 参数：
+# - project_id: 项目ID，用于标识特定项目。
+# - time_constraint: 布尔值，表示是否应用时间约束。
+# - chart: 布尔值，表示是否用于图表数据。
+# - duration: 布尔值，表示是否应用持续时间约束。
+# - project: 布尔值，表示是否应用项目约束。
+# - project_identifier: 字符串，表示项目标识符，默认为 "project_id"。
+# - main_table: 字符串，表示主表名称，默认为 "sessions"。
+# - time_column: 字符串，表示时间列名称，默认为 "start_ts"。
+# - data: 字典类型，包含查询所需的其他数据。
+# 返回值：
+# - pg_sub_query: 列表，包含生成的SQL查询子句。
 def __get_constraints(project_id, time_constraint=True, chart=False, duration=True, project=True, project_identifier="project_id", main_table="sessions", time_column="start_ts", data={}):
     pg_sub_query = []
     main_table = main_table + "." if main_table is not None and len(main_table) > 0 else ""
@@ -43,7 +62,13 @@ def __get_constraints(project_id, time_constraint=True, chart=False, duration=Tr
         pg_sub_query.append(f"{main_table}{time_column} < generated_timestamp + %(step_size)s")
     return pg_sub_query + __get_meta_constraint(project_id=project_id, data=data)
 
-
+# 合并两个列表中的图表数据，确保它们具有相同的时间轴。
+# 参数：
+# - list1: 第一个图表数据列表。
+# - list2: 第二个图表数据列表。
+# - time_key: 用于表示时间轴的键，默认为 "timestamp"。
+# 返回值：
+# - result: 合并后的图表数据列表。
 def __merge_charts(list1, list2, time_key="timestamp"):
     if len(list1) != len(list2):
         raise Exception("cannot merge unequal lists")
@@ -53,14 +78,18 @@ def __merge_charts(list1, list2, time_key="timestamp"):
         result.append({**list1[i], **list2[i], time_key: timestamp})
     return result
 
-
+# 从过滤条件数据中提取参数值，用于生成SQL查询的约束条件。
+# 参数：
+# - data: 字典类型，包含过滤条件的键值对。
+# 返回值：
+# - params: 字典，包含生成的参数键值对，用于SQL查询。
 def __get_constraint_values(data):
     params = {}
     for i, f in enumerate(data.get("filters", [])):
         params[f"{f['key']}_{i}"] = f["value"]
     return params
 
-
+# 定义元数据字段的映射关系，用于在数据库查询中使用。
 METADATA_FIELDS = {
     "userId": "user_id",
     "userAnonymousId": "user_anonymous_id",
@@ -76,7 +105,12 @@ METADATA_FIELDS = {
     "metadata10": "metadata_10",
 }
 
-
+# 根据项目ID和过滤条件生成元数据查询的约束条件。
+# 参数：
+# - project_id: 项目ID，用于获取项目的元数据键。
+# - data: 字典类型，包含过滤条件的键值对。
+# 返回值：
+# - constraints: 列表，包含生成的元数据约束条件，用于SQL查询。
 def __get_meta_constraint(project_id, data):
     if len(data.get("filters", [])) == 0:
         return []
@@ -110,10 +144,18 @@ def __get_meta_constraint(project_id, data):
                 constraints.append(f"sessions.rev_id = %({f['key']}_{i})s")
     return constraints
 
-
+# 定义与会话元数据字段的映射关系，用于在数据库查询中使用。
 SESSIONS_META_FIELDS = {"revId": "rev_id", "country": "user_country", "os": "user_os", "platform": "user_device_type", "device": "user_device", "browser": "user_browser"}
 
-
+# 获取处理后的会话数据。
+# 参数：
+# - project_id: 项目ID，用于标识特定项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 密度，表示数据的密集程度，默认为7。
+# - args: 其他可选参数，用于进一步过滤数据。
+# 返回值：
+# - 返回处理后的会话数据，包含时间戳和对应的值。
 def get_processed_sessions(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -150,7 +192,15 @@ def get_processed_sessions(project_id, startTimestamp=TimeUTC.now(delta_days=-1)
     results["unit"] = schemas.TemplatePredefinedUnits.count
     return results
 
-
+# 获取指定项目的错误信息，并统计这些错误在时间轴上的分布情况。
+# 参数：
+# - project_id: 项目ID，表示要获取错误信息的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - args: 可选参数，用于进一步筛选错误信息。
+# 返回值：
+# - results: 包含错误统计、影响的会话数量、错误的时间轴分布等信息的字典。
 def get_errors(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
 
@@ -190,7 +240,16 @@ def get_errors(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimesta
         results["progress"] = helper.__progress(old_val=count, new_val=results["count"])
     return results
 
-
+# 计算在指定时间范围内发生的不同错误的数量。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，用于标识特定项目。
+# - startTimestamp: 开始时间戳。
+# - endTimestamp: 结束时间戳。
+# - pg_sub_query: 用于错误查询的SQL子查询约束条件。
+# - args: 其他可选参数，用于进一步筛选错误信息。
+# 返回值：
+# - 错误数量，整数类型。
 def __count_distinct_errors(cur, project_id, startTimestamp, endTimestamp, pg_sub_query, **args):
     pg_query = f"""WITH errors AS (SELECT DISTINCT error_id
                                 FROM events.errors
@@ -201,7 +260,15 @@ def __count_distinct_errors(cur, project_id, startTimestamp, endTimestamp, pg_su
     cur.execute(cur.mogrify(pg_query, {"project_id": project_id, "startTimestamp": startTimestamp, "endTimestamp": endTimestamp, **__get_constraint_values(args)}))
     return cur.fetchone()["count"]
 
-
+# 获取指定项目的错误趋势，包括每个错误的发生次数、影响的会话数量以及时间轴上的分布。
+# 参数：
+# - project_id: 项目ID，表示要获取错误趋势的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - args: 可选参数，用于进一步筛选错误信息。
+# 返回值：
+# - rows: 包含错误趋势数据的列表，每个元素是一个错误的详细信息。
 def get_errors_trend(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
 
@@ -258,7 +325,14 @@ def get_errors_trend(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endT
 
     return rows
 
-
+# 获取指定项目的页面性能指标，如DOM内容加载时间和首次内容绘制时间。
+# 参数：
+# - project_id: 项目ID，表示要获取页面性能指标的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 可选参数，用于进一步筛选页面性能数据。
+# 返回值：
+# - results: 包含当前时间段和之前时间段的页面性能指标对比的字典。
 def get_page_metrics(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     with pg_client.PostgresClient() as cur:
         rows = __get_page_metrics(cur, project_id, startTimestamp, endTimestamp, **args)
@@ -274,7 +348,15 @@ def get_page_metrics(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endT
                 results[key + "Progress"] = helper.__progress(old_val=previous[key], new_val=results[key])
     return results
 
-
+# 从数据库中获取指定项目的页面性能原始数据。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取页面性能数据的项目。
+# - startTimestamp: 开始时间戳。
+# - endTimestamp: 结束时间戳。
+# - args: 可选参数，用于进一步筛选页面性能数据。
+# 返回值：
+# - rows: 包含页面性能原始数据的列表。
 def __get_page_metrics(cur, project_id, startTimestamp, endTimestamp, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("pages.timestamp>=%(startTimestamp)s")
@@ -292,7 +374,14 @@ def __get_page_metrics(cur, project_id, startTimestamp, endTimestamp, **args):
     rows = cur.fetchall()
     return rows
 
-
+# 获取指定项目的应用程序活动指标，如页面加载时间和资源加载时间。
+# 参数：
+# - project_id: 项目ID，表示要获取应用程序活动指标的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 可选参数，用于进一步筛选应用程序活动数据。
+# 返回值：
+# - results: 包含当前时间段和之前时间段的应用程序活动指标对比的字典。
 def get_application_activity(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     with pg_client.PostgresClient() as cur:
         row = __get_application_activity(cur, project_id, startTimestamp, endTimestamp, **args)
@@ -306,7 +395,15 @@ def get_application_activity(project_id, startTimestamp=TimeUTC.now(delta_days=-
             results[key + "Progress"] = helper.__progress(old_val=previous[key], new_val=results[key])
     return results
 
-
+# 从数据库中获取指定项目的应用程序活动原始数据。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取应用程序活动数据的项目。
+# - startTimestamp: 开始时间戳。
+# - endTimestamp: 结束时间戳。
+# - args: 可选参数，用于进一步筛选应用程序活动数据。
+# 返回值：
+# - result: 包含应用程序活动数据的字典。
 def __get_application_activity(cur, project_id, startTimestamp, endTimestamp, **args):
     result = {}
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -339,7 +436,14 @@ def __get_application_activity(cur, project_id, startTimestamp, endTimestamp, **
 
     return result
 
-
+# 获取指定项目的用户活动指标，如平均访问页面数和会话持续时间。
+# 参数：
+# - project_id: 项目ID，表示要获取用户活动指标的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 可选参数，用于进一步筛选用户活动数据。
+# 返回值：
+# - results: 包含当前时间段和之前时间段的用户活动指标对比的字典。
 def get_user_activity(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     with pg_client.PostgresClient() as cur:
         row = __get_user_activity(cur, project_id, startTimestamp, endTimestamp, **args)
@@ -354,7 +458,15 @@ def get_user_activity(project_id, startTimestamp=TimeUTC.now(delta_days=-1), end
             results[key + "Progress"] = helper.__progress(old_val=previous[key], new_val=results[key])
     return results
 
-
+# 从数据库中获取指定项目的用户活动原始数据。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取用户活动数据的项目。
+# - startTimestamp: 开始时间戳。
+# - endTimestamp: 结束时间戳。
+# - args: 可选参数，用于进一步筛选用户活动数据。
+# 返回值：
+# - row: 包含用户活动数据的字典。
 def __get_user_activity(cur, project_id, startTimestamp, endTimestamp, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("(sessions.pages_count>0 OR sessions.duration>0)")
@@ -368,7 +480,15 @@ def __get_user_activity(cur, project_id, startTimestamp, endTimestamp, **args):
     row = cur.fetchone()
     return row
 
-
+# 获取指定项目加载最慢的图片资源，并统计这些资源的加载时间和影响的会话数量。
+# 参数：
+# - project_id: 项目ID，表示要获取最慢图片资源的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - args: 可选参数，用于进一步筛选图片资源数据。
+# 返回值：
+# - 返回排序后的图片资源列表，按照影响的会话数量从多到少排序。
 def get_slowest_images(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(endTimestamp=endTimestamp, startTimestamp=startTimestamp, density=density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -416,14 +536,29 @@ def get_slowest_images(project_id, startTimestamp=TimeUTC.now(delta_days=-1), en
 
     return sorted(rows, key=lambda k: k["sessions"], reverse=True)
 
+# 该代码主要用于处理与项目性能相关的各种查询，包括获取性能指标、筛选特定资源类型的数据、搜索相关资源等。通过这些函数，用户可以获取指定项目的图片加载时间、请求加载时间、页面加载时间等性能数据，并根据资源类型和其他过滤条件进行搜索。
 
+# 生成性能约束条件字符串。
+# 参数：
+# - l: 列表，包含要转换为SQL条件的字符串。
+# 返回值：
+# - 返回一个SQL条件字符串，用于WHERE子句。
 def __get_performance_constraint(l):
     if len(l) == 0:
         return ""
     l = [s.decode("UTF-8").replace("%", "%%") for s in l]
     return f"AND ({' OR '.join(l)})"
 
-
+# 获取指定项目的性能数据，包括图片加载时间、请求加载时间、页面加载时间。
+# 参数：
+# - project_id: 项目ID，表示要获取性能数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为19。
+# - resources: 资源列表，用于指定要查询的特定资源类型和路径。
+# - args: 其他可选参数，用于进一步筛选性能数据。
+# 返回值：
+# - 返回一个包含性能数据的字典，其中包括图片加载时间、请求加载时间、页面加载时间的时间轴分布。
 def get_performance(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=19, resources=None, **args):
     step_size = __get_step_size(endTimestamp=endTimestamp, startTimestamp=startTimestamp, density=density, factor=1)
     location_constraints = []
@@ -526,20 +661,40 @@ def get_performance(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTi
 
     return {"chart": rows}
 
-
+# 资源类型与数据库存储类型之间的映射关系，用于在查询时将资源类型转换为数据库中的实际存储类型。
 RESOURCS_TYPE_TO_DB_TYPE = {"img": "IMG", "fetch": "REQUEST", "stylesheet": "STYLESHEET", "script": "SCRIPT", "other": "OTHER", "media": "MEDIA"}
 
-
+# 根据数据库存储类型获取对应的资源类型。
+# 参数：
+# - db_type: 数据库存储类型字符串。
+# 返回值：
+# - 返回与数据库存储类型对应的资源类型。
 def __get_resource_type_from_db_type(db_type):
     db_type = db_type.lower()
     return RESOURCS_TYPE_TO_DB_TYPE.get(db_type, db_type)
 
-
+# 根据资源类型获取对应的数据库存储类型。
+# 参数：
+# - resource_type: 资源类型字符串。
+# 返回值：
+# - 返回与资源类型对应的数据库存储类型。
 def __get_resource_db_type_from_type(resource_type):
     resource_type = resource_type.upper()
     return {v: k for k, v in RESOURCS_TYPE_TO_DB_TYPE.items()}.get(resource_type, resource_type)
 
-
+# 搜索指定项目中的资源或事件，根据输入的文本和资源类型进行匹配。
+# 参数：
+# - text: 要搜索的文本。
+# - resource_type: 资源类型字符串，指定要搜索的资源类型。
+# - project_id: 项目ID，用于标识搜索范围。
+# - performance: 布尔值，表示是否仅搜索性能相关的数据。
+# - pages_only: 布尔值，表示是否仅搜索页面相关的数据。
+# - events_only: 布尔值，表示是否仅搜索事件相关的数据。
+# - metadata: 布尔值，表示是否搜索元数据。
+# - key: 元数据键，用于指定搜索的特定元数据字段。
+# - platform: 平台信息，用于进一步筛选搜索结果。
+# 返回值：
+# - 返回包含匹配资源或事件的字典列表，每个字典包含资源或事件的类型和值。
 def search(text, resource_type, project_id, performance=False, pages_only=False, events_only=False, metadata=False, key=None, platform=None):
     if not resource_type:
         data = []
@@ -675,7 +830,18 @@ def search(text, resource_type, project_id, performance=False, pages_only=False,
         return []
     return [helper.dict_to_camel_case(row) for row in rows]
 
+# 这段代码主要用于处理与项目资源和页面性能相关的查询，包括获取丢失资源的趋势、网络活动、资源加载时间、页面DOM构建时间等。通过这些函数，
+# 用户可以分析项目中各类资源的表现和页面的加载时间，并根据特定的过滤条件进行深入分析。
 
+# 获取指定项目中丢失资源的趋势，包括资源的URL和影响的会话数量。
+# 参数：
+# - project_id: 项目ID，表示要获取丢失资源趋势的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - args: 其他可选参数，用于进一步筛选丢失资源数据。
+# 返回值：
+# - rows: 包含丢失资源趋势数据的列表，每个元素包括资源的URL、开始和结束时间、会话数量和时间轴上的分布。
 def get_missing_resources_trend(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -727,7 +893,15 @@ def get_missing_resources_trend(project_id, startTimestamp=TimeUTC.now(delta_day
             e["chart"] = [{"timestamp": i["timestamp"], "count": i["count"]} for i in r]
     return rows
 
-
+# 获取指定项目中的网络活动数据，包括每个时间段内资源的请求数量和对应的域名。
+# 参数：
+# - project_id: 项目ID，表示要获取网络活动数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - args: 其他可选参数，用于进一步筛选网络活动数据。
+# 返回值：
+# - 包含网络活动数据的字典，包括每个时间段内的域名请求数量分布。
 def get_network(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query_subset = __get_constraints(project_id=project_id, data=args)
@@ -777,7 +951,11 @@ KEYS = {
     "platform": args_transformer.string,
 }
 
-
+# 将传入的参数转换为适合在仪表盘中使用的格式。
+# 参数：
+# - params: 字典类型，包含要转换的参数。
+# 返回值：
+# - args: 转换后的参数字典，包含适合在仪表盘中使用的参数值。
 def dashboard_args(params):
     args = {}
     if params is not None:
@@ -786,7 +964,17 @@ def dashboard_args(params):
                 args[key] = KEYS[key](params.get(key))
     return args
 
-
+# 获取指定项目中资源的加载时间。
+# 参数：
+# - project_id: 项目ID，表示要获取资源加载时间的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为19。
+# - type: 资源类型，可选参数，用于指定要查询的资源类型。
+# - url: 资源的URL，可选参数，用于指定要查询的资源URL。
+# - args: 其他可选参数，用于进一步筛选资源加载时间数据。
+# 返回值：
+# - 返回一个包含平均加载时间和时间轴上加载时间分布的字典。
 def get_resources_loading_time(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=19, type=None, url=None, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query_subset = __get_constraints(project_id=project_id, data=args)
@@ -827,7 +1015,16 @@ def get_resources_loading_time(project_id, startTimestamp=TimeUTC.now(delta_days
 
     return {"avg": avg, "chart": rows}
 
-
+# 获取指定项目中页面DOM构建时间的分布。
+# 参数：
+# - project_id: 项目ID，表示要获取页面DOM构建时间的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为19。
+# - url: 页面URL，可选参数，用于指定要查询的页面URL。
+# - args: 其他可选参数，用于进一步筛选页面DOM构建时间数据。
+# 返回值：
+# - 返回一个包含DOM构建时间和时间轴上构建时间分布的字典。
 def get_pages_dom_build_time(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=19, url=None, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query_subset = __get_constraints(project_id=project_id, data=args)
@@ -867,7 +1064,19 @@ def get_pages_dom_build_time(project_id, startTimestamp=TimeUTC.now(delta_days=-
     helper.__time_value(row)
     return row
 
+# 这段代码主要用于处理与项目资源、页面性能以及用户会话相关的查询。这些函数涵盖了从资源加载时间、页面响应时间到内存消耗和CPU使用率等各个方面的性能分析。
+# 通过这些函数，用户可以获取项目中慢速资源的统计信息、用户会话的地理分布、页面响应时间的分布等数据。
 
+# 获取指定项目中加载最慢的资源，包括资源的类型、URL和加载时间分布。
+# 参数：
+# - project_id: 项目ID，表示要获取慢速资源数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - type: 资源类型，默认值为“all”，表示所有类型资源。
+# - density: 数据密度，用于生成时间序列的步长，默认为19。
+# - args: 其他可选参数，用于进一步筛选资源数据。
+# 返回值：
+# - rows: 包含最慢资源数据的列表，每个元素包括资源的名称、类型、URL、平均加载时间等信息。
 def get_slowest_resources(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), type="all", density=19, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -933,7 +1142,14 @@ def get_slowest_resources(project_id, startTimestamp=TimeUTC.now(delta_days=-1),
             r["type"] = __get_resource_type_from_db_type(r["type"])
     return rows
 
-
+# 获取指定项目中用户会话的地理分布，包括每个国家的会话数量。
+# 参数：
+# - project_id: 项目ID，表示要获取用户会话地理分布的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 其他可选参数，用于进一步筛选用户会话数据。
+# 返回值：
+# - 包含用户会话地理分布数据的字典，包括总会话数量和每个国家的会话数量。
 def get_sessions_location(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
 
@@ -947,7 +1163,14 @@ def get_sessions_location(project_id, startTimestamp=TimeUTC.now(delta_days=-1),
         rows = cur.fetchall()
     return {"count": sum(i["count"] for i in rows), "chart": helper.list_to_camel_case(rows)}
 
-
+# 获取指定项目中页面速度指数的地理分布，包括每个国家的速度指数。
+# 参数：
+# - project_id: 项目ID，表示要获取页面速度指数地理分布的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 其他可选参数，用于进一步筛选页面速度指数数据。
+# 返回值：
+# - 包含页面速度指数地理分布数据的字典，包括平均速度指数和每个国家的速度指数分布。
 def get_speed_index_location(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("pages.speed_index IS NOT NULL")
@@ -972,7 +1195,16 @@ def get_speed_index_location(project_id, startTimestamp=TimeUTC.now(delta_days=-
             avg = 0
     return {"value": avg, "chart": helper.list_to_camel_case(rows), "unit": schemas.TemplatePredefinedUnits.millisecond}
 
-
+# 获取指定项目中页面响应时间的时间轴分布，包括平均响应时间和在时间轴上的分布。
+# 参数：
+# - project_id: 项目ID，表示要获取页面响应时间的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - url: 页面URL，可选参数，用于指定要查询的页面URL。
+# - args: 其他可选参数，用于进一步筛选页面响应时间数据。
+# 返回值：
+# - 包含页面响应时间数据的字典，包括平均响应时间和时间轴上的分布。
 def get_pages_response_time(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, url=None, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -1007,7 +1239,15 @@ def get_pages_response_time(project_id, startTimestamp=TimeUTC.now(delta_days=-1
     helper.__time_value(result)
     return result
 
-
+# 获取指定项目中页面响应时间的分布，包括不同响应时间段的请求数量和极值处理。
+# 参数：
+# - project_id: 项目ID，表示要获取页面响应时间分布的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为20。
+# - args: 其他可选参数，用于进一步筛选页面响应时间数据。
+# 返回值：
+# - 包含页面响应时间分布数据的字典，包括响应时间的分布、百分位数、极值等信息。
 def get_pages_response_time_distribution(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=20, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("pages.response_time IS NOT NULL")
@@ -1112,7 +1352,14 @@ def get_pages_response_time_distribution(project_id, startTimestamp=TimeUTC.now(
         result["chart"] = rows
     return result
 
-
+# 获取指定项目中用户会话最活跃的时段，包括每个小时段的会话数量。
+# 参数：
+# - project_id: 项目ID，表示要获取用户会话活跃时段的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 其他可选参数，用于进一步筛选用户会话数据。
+# 返回值：
+# - rows: 包含每个小时段用户会话数量的列表。
 def get_busiest_time_of_day(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
 
@@ -1128,7 +1375,15 @@ def get_busiest_time_of_day(project_id, startTimestamp=TimeUTC.now(delta_days=-1
         rows = cur.fetchall()
     return rows
 
-
+# 获取指定项目中页面的各项性能指标的平均值，包括响应时间、首次绘制时间、DOM内容加载时间等。
+# 参数：
+# - project_id: 项目ID，表示要获取页面性能指标的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - value: 页面路径，可选参数，用于指定要查询的页面路径。
+# - args: 其他可选参数，用于进一步筛选页面性能指标数据。
+# 返回值：
+# - row: 包含页面性能指标平均值的字典。
 def get_top_metrics(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), value=None, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
 
@@ -1174,7 +1429,16 @@ def get_top_metrics(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTi
         row = cur.fetchone()
     return helper.dict_to_camel_case(row)
 
-
+# 获取指定项目中页面渲染完成的时间，包括时间轴上的渲染时间分布。
+# 参数：
+# - project_id: 项目ID，表示要获取页面渲染时间的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - url: 页面URL，可选参数，用于指定要查询的页面URL。
+# - args: 其他可选参数，用于进一步筛选页面渲染时间数据。
+# 返回值：
+# - row: 包含页面渲染时间分布和平均渲染时间的字典。
 def get_time_to_render(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, url=None, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query_subset = __get_constraints(project_id=project_id, data=args)
@@ -1205,7 +1469,16 @@ def get_time_to_render(project_id, startTimestamp=TimeUTC.now(delta_days=-1), en
     helper.__time_value(row)
     return row
 
-
+# 获取指定项目中受慢速页面影响的会话，包括会话的时间分布和数量。
+# 参数：
+# - project_id: 项目ID，表示要获取受慢速页面影响的会话数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - value: 页面路径，可选参数，用于指定要查询的页面路径。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - args: 其他可选参数，用于进一步筛选会话数据。
+# 返回值：
+# - rows: 包含受慢速页面影响的会话数据的列表，每个元素包括会话的时间戳和数量。
 def get_impacted_sessions_by_slow_pages(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), value=None, density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -1239,7 +1512,15 @@ def get_impacted_sessions_by_slow_pages(project_id, startTimestamp=TimeUTC.now(d
         rows = cur.fetchall()
     return rows
 
-
+# 获取指定项目中内存消耗的时间轴分布，包括平均内存消耗和时间轴上的内存消耗分布。
+# 参数：
+# - project_id: 项目ID，表示要获取内存消耗数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - args: 其他可选参数，用于进一步筛选内存消耗数据。
+# 返回值：
+# - 包含内存消耗数据的字典，包括平均内存消耗和时间轴上的内存消耗分布。
 def get_memory_consumption(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -1266,7 +1547,15 @@ def get_memory_consumption(project_id, startTimestamp=TimeUTC.now(delta_days=-1)
         avg = cur.fetchone()["avg"]
     return {"value": avg, "chart": helper.list_to_camel_case(rows), "unit": schemas.TemplatePredefinedUnits.memory}
 
-
+# 获取指定项目中CPU使用率的时间轴分布，包括平均CPU使用率和时间轴上的分布。
+# 参数：
+# - project_id: 项目ID，表示要获取CPU使用率数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - args: 其他可选参数，用于进一步筛选CPU使用率数据。
+# 返回值：
+# - 包含CPU使用率数据的字典，包括平均CPU使用率和时间轴上的分布。
 def get_avg_cpu(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -1293,7 +1582,15 @@ def get_avg_cpu(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimest
         avg = cur.fetchone()["avg"]
     return {"value": avg, "chart": helper.list_to_camel_case(rows), "unit": schemas.TemplatePredefinedUnits.percentage}
 
-
+# 获取指定项目中的平均帧率（FPS）数据，并生成时间轴上的FPS分布。
+# 参数：
+# - project_id: 项目ID，表示要获取FPS数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - args: 其他可选参数，用于进一步筛选FPS数据。
+# 返回值：
+# - 包含FPS数据的字典，包括平均FPS和时间轴上的FPS分布。
 def get_avg_fps(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -1321,7 +1618,15 @@ def get_avg_fps(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimest
         avg = cur.fetchone()["avg"]
     return {"value": avg, "chart": helper.list_to_camel_case(rows), "unit": schemas.TemplatePredefinedUnits.frame}
 
-
+# 获取指定项目中应用崩溃次数的时间轴分布，以及按浏览器统计的崩溃情况。
+# 参数：
+# - project_id: 项目ID，表示要获取崩溃数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为7。
+# - args: 其他可选参数，用于进一步筛选崩溃数据。
+# 返回值：
+# - 包含崩溃数据的字典，包括时间轴上的崩溃次数分布和按浏览器统计的崩溃情况。
 def get_crashes(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -1382,20 +1687,38 @@ def get_crashes(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimest
 
     return {"chart": rows, "browsers": browsers, "unit": schemas.TemplatePredefinedUnits.count}
 
-
+# 生成一个中立的字典，用于存储在所有行中出现的键，默认值为0。
+# 参数：
+# - rows: 一个包含字典的列表，每个字典代表一行数据。
+# - add_All_if_empty: 如果为True且中立字典中的键少于或等于1，则添加一个键为"All"的项。
+# 返回值：
+# - 一个字典，键为在所有行中出现的唯一键，值为0。
 def __get_neutral(rows, add_All_if_empty=True):
     neutral = {l: 0 for l in [i for k in [list(v.keys()) for v in rows] for i in k]}
     if add_All_if_empty and len(neutral.keys()) <= 1:
         neutral = {"All": 0}
     return neutral
 
-
+# 将中立字典合并到每一行的数据字典中，以确保所有行都有相同的键。
+# 参数：
+# - rows: 一个包含字典的列表，每个字典代表一行数据。
+# - neutral: 一个中立字典，包含所有可能的键，值为0。
+# 返回值：
+# - 一个更新后的列表，其中每一行的数据字典都包含中立字典中的所有键。
 def __merge_rows_with_neutral(rows, neutral):
     for i in range(len(rows)):
         rows[i] = {**neutral, **rows[i]}
     return rows
 
-
+# 获取指定项目中按时间分布的域名错误数据，包括4xx和5xx错误的分布。
+# 参数：
+# - project_id: 项目ID，表示要获取域名错误数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为6。
+# - args: 其他可选参数，用于进一步筛选错误数据。
+# 返回值：
+# - 包含4xx和5xx错误分布的字典，每个错误类型对应一个列表，列表中的每一项代表一个时间点的错误分布。
 def get_domains_errors(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=6, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query_subset = __get_constraints(project_id=project_id, time_constraint=True, chart=False, data=args)
@@ -1438,7 +1761,16 @@ def get_domains_errors(project_id, startTimestamp=TimeUTC.now(delta_days=-1), en
         result["5xx"] = rows
     return result
 
-
+# 获取指定项目中按时间分布的4xx或5xx错误数据。
+# 参数：
+# - status: 错误类型，4表示4xx错误，5表示5xx错误。
+# - project_id: 项目ID，表示要获取域名错误数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为6。
+# - args: 其他可选参数，用于进一步筛选错误数据。
+# 返回值：
+# - 包含指定错误类型分布的列表，每一项代表一个时间点的错误分布。
 def __get_domains_errors_4xx_and_5xx(status, project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=6, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query_subset = __get_constraints(project_id=project_id, time_constraint=True, chart=False, data=args)
@@ -1471,15 +1803,37 @@ def __get_domains_errors_4xx_and_5xx(status, project_id, startTimestamp=TimeUTC.
 
         return rows
 
-
+# 获取指定项目中按时间分布的4xx错误数据。
+# 参数：
+# - project_id: 项目ID，表示要获取4xx错误数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为6。
+# - args: 其他可选参数，用于进一步筛选错误数据。
+# 返回值：
+# - 包含4xx错误分布的列表，每一项代表一个时间点的错误分布。
 def get_domains_errors_4xx(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=6, **args):
     return __get_domains_errors_4xx_and_5xx(status=4, project_id=project_id, startTimestamp=startTimestamp, endTimestamp=endTimestamp, density=density, **args)
 
-
+# 获取指定项目中按时间分布的5xx错误数据。
+# 参数：
+# - project_id: 项目ID，表示要获取5xx错误数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于生成时间序列的步长，默认为6。
+# - args: 其他可选参数，用于进一步筛选错误数据。
+# 返回值：
+# - 包含5xx错误分布的列表，每一项代表一个时间点的错误分布。
 def get_domains_errors_5xx(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=6, **args):
     return __get_domains_errors_4xx_and_5xx(status=5, project_id=project_id, startTimestamp=startTimestamp, endTimestamp=endTimestamp, density=density, **args)
 
-
+# 将嵌套的数组结构转换为字典结构，其中嵌套数组中的键值对转换为字典项。
+# 参数：
+# - rows: 包含嵌套数组结构的列表，每个项表示一行数据。
+# - key: 用于作为字典键的字段名，默认为"url_host"。
+# - value: 用于作为字典值的字段名，默认为"count"。
+# 返回值：
+# - 转换后的列表，其中每一项都是一个字典，包含从嵌套数组中提取的键值对。
 def __nested_array_to_dict_array(rows, key="url_host", value="count"):
     for r in rows:
         for i in range(len(r["keys"])):
@@ -1487,7 +1841,14 @@ def __nested_array_to_dict_array(rows, key="url_host", value="count"):
         r.pop("keys")
     return rows
 
-
+# 获取指定项目中加载速度最慢的域名列表及其平均加载时长。
+# 参数：
+# - project_id: 项目ID，表示要获取最慢域名数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 其他可选参数，用于进一步筛选域名数据。
+# 返回值：
+# - 包含加载速度最慢域名及其平均加载时长的字典。
 def get_slowest_domains(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("resources.duration IS NOT NULL")
@@ -1515,7 +1876,14 @@ def get_slowest_domains(project_id, startTimestamp=TimeUTC.now(delta_days=-1), e
             avg = 0
     return {"value": avg, "chart": rows, "unit": schemas.TemplatePredefinedUnits.millisecond}
 
-
+# 获取指定项目中各域名的错误请求次数，并按错误次数降序排列。
+# 参数：
+# - project_id: 项目ID，表示要获取域名错误数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 其他可选参数，用于进一步筛选错误数据。
+# 返回值：
+# - 一个包含域名和对应错误请求次数的列表，按错误次数降序排列。
 def get_errors_per_domains(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("requests.success = FALSE")
@@ -1533,7 +1901,15 @@ def get_errors_per_domains(project_id, startTimestamp=TimeUTC.now(delta_days=-1)
         rows = cur.fetchall()
     return helper.list_to_camel_case(rows)
 
-
+# 获取指定项目中按浏览器分类的会话数量和版本分布。
+# 参数：
+# - project_id: 项目ID，表示要获取会话数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - platform: 平台信息，可选。
+# - args: 其他可选参数，用于进一步筛选会话数据。
+# 返回值：
+# - 一个包含浏览器名称、会话数量和版本分布的字典
 def get_sessions_per_browser(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), platform=None, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query2 = pg_sub_query[:]
@@ -1572,7 +1948,15 @@ def get_sessions_per_browser(project_id, startTimestamp=TimeUTC.now(delta_days=-
         r.pop("versions")
     return {"count": sum(i["count"] for i in rows), "chart": rows}
 
-
+# 获取指定项目中不同HTTP方法的调用错误情况，包括4xx和5xx错误的分布。
+# 参数：
+# - project_id: 项目ID，表示要获取调用错误数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - platform: 平台信息，可选。
+# - args: 其他可选参数，用于进一步筛选调用错误数据。
+# 返回值：
+# - 一个包含HTTP方法、请求路径、总请求数、4xx和5xx错误数的列表。
 def get_calls_errors(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), platform=None, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("resources.type = 'fetch'")
@@ -1594,7 +1978,16 @@ def get_calls_errors(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endT
         rows = cur.fetchall()
     return helper.list_to_camel_case(rows)
 
-
+# 获取指定项目中4xx或5xx错误的调用情况。
+# 参数：
+# - status: 错误类型，4表示4xx错误，5表示5xx错误。
+# - project_id: 项目ID，表示要获取调用错误数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - platform: 平台信息，可选。
+# - args: 其他可选参数，用于进一步筛选调用错误数据。
+# 返回值：
+# - 一个包含HTTP方法、主机路径、请求总数的列表。
 def __get_calls_errors_4xx_or_5xx(status, project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), platform=None, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("requests.type = 'fetch'")
@@ -1617,15 +2010,40 @@ def __get_calls_errors_4xx_or_5xx(status, project_id, startTimestamp=TimeUTC.now
             r["url_hostpath"] = r.pop("host") + r.pop("path")
     return helper.list_to_camel_case(rows)
 
-
+# 获取指定项目中4xx错误的调用情况。
+# 参数：
+# - project_id: 项目ID，表示要获取4xx调用错误数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - platform: 平台信息，可选。
+# - args: 其他可选参数，用于进一步筛选调用错误数据。
+# 返回值：
+# - 一个包含4xx错误的调用情况列表。
 def get_calls_errors_4xx(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), platform=None, **args):
     return __get_calls_errors_4xx_or_5xx(status=4, project_id=project_id, startTimestamp=startTimestamp, endTimestamp=endTimestamp, platform=platform, **args)
 
-
+# 获取指定项目中5xx错误的调用情况。
+# 参数：
+# - project_id: 项目ID，表示要获取5xx调用错误数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - platform: 平台信息，可选。
+# - args: 其他可选参数，用于进一步筛选调用错误数据。
+# 返回值：
+# - 一个包含5xx错误的调用情况列表。
 def get_calls_errors_5xx(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), platform=None, **args):
     return __get_calls_errors_4xx_or_5xx(status=5, project_id=project_id, startTimestamp=startTimestamp, endTimestamp=endTimestamp, platform=platform, **args)
 
-
+# 获取指定项目中不同错误类型的分布情况，包括4xx、5xx、JS错误和集成错误。
+# 参数：
+# - project_id: 项目ID，表示要获取错误类型分布数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - platform: 平台信息，可选。
+# - density: 数据密度，用于确定时间间隔，默认为7。
+# - args: 其他可选参数，用于进一步筛选错误类型数据。
+# 返回值：
+# - 一个包含不同错误类型的分布情况列表。
 def get_errors_per_type(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), platform=None, density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
 
@@ -1681,7 +2099,15 @@ def get_errors_per_type(project_id, startTimestamp=TimeUTC.now(delta_days=-1), e
         rows = helper.list_to_camel_case(rows)
     return rows
 
-
+# 获取资源类型与页面响应结束时间的关系数据。
+# 参数：
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于确定时间间隔，默认为7。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含资源类型和页面响应结束时间关系的列表。
 def resource_type_vs_response_end(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query_subset = __get_constraints(project_id=project_id, time_constraint=True, chart=False, data=args)
@@ -1726,7 +2152,15 @@ def resource_type_vs_response_end(project_id, startTimestamp=TimeUTC.now(delta_d
         response_end = cur.fetchall()
     return helper.list_to_camel_case(__merge_charts(response_end, actions))
 
-
+# 获取受JavaScript错误影响的会话数量，并按时间生成图表数据。
+# 参数：
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于确定时间间隔，默认为7。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含受JS错误影响的会话数量及相关图表数据的字典。
 def get_impacted_sessions_by_js_errors(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -1794,7 +2228,15 @@ def get_impacted_sessions_by_js_errors(project_id, startTimestamp=TimeUTC.now(de
         row_errors = helper.dict_to_camel_case(row_errors)
     return {**row_sessions, **row_errors, "chart": chart}
 
-
+# 获取资源类型与页面视觉完成时间的关系数据。
+# 参数：
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于确定时间间隔，默认为7。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含资源类型和页面视觉完成时间关系的列表。
 def get_resources_vs_visually_complete(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query_subset = __get_constraints(project_id=project_id, time_constraint=True, chart=False, data=args)
@@ -1838,7 +2280,15 @@ def get_resources_vs_visually_complete(project_id, startTimestamp=TimeUTC.now(de
 
     return helper.list_to_camel_case(rows)
 
-
+# 获取按资源类型划分的资源数量，并按时间生成图表数据。
+# 参数：
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于确定时间间隔，默认为7。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含资源类型数量的列表，按时间生成图表数据。
 def get_resources_count_by_type(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query_subset = __get_constraints(project_id=project_id, time_constraint=True, chart=False, data=args)
@@ -1868,7 +2318,15 @@ def get_resources_count_by_type(project_id, startTimestamp=TimeUTC.now(delta_day
         rows = __merge_rows_with_neutral(rows, {k: 0 for k in RESOURCS_TYPE_TO_DB_TYPE.keys()})
     return rows
 
-
+# 获取由第一方和第三方请求引发的资源数量，并按时间生成图表数据。
+# 参数：
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于确定时间间隔，默认为7。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含第一方和第三方资源请求数量的列表，按时间生成图表数据。
 def get_resources_by_party(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query_subset = __get_constraints(project_id=project_id, time_constraint=True, chart=False, data=args)
@@ -1916,7 +2374,15 @@ def get_resources_by_party(project_id, startTimestamp=TimeUTC.now(delta_days=-1)
         rows = cur.fetchall()
     return rows
 
-
+# 获取指定时间段内图像资源的平均加载时间。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳。
+# - endTimestamp: 结束时间戳。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 包含图像资源平均加载时间的字典。
 def __get_application_activity_avg_image_load_time(cur, project_id, startTimestamp, endTimestamp, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("resources.duration > 0")
@@ -1929,7 +2395,14 @@ def __get_application_activity_avg_image_load_time(cur, project_id, startTimesta
     row = cur.fetchone()
     return row
 
-
+# 获取应用活动中图像资源的平均加载时间，并生成图表数据。
+# 参数：
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含图像资源平均加载时间和进度数据的字典。
 def get_application_activity_avg_image_load_time(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     with pg_client.PostgresClient() as cur:
         row = __get_application_activity_avg_image_load_time(cur, project_id, startTimestamp, endTimestamp, **args)
@@ -1944,7 +2417,16 @@ def get_application_activity_avg_image_load_time(project_id, startTimestamp=Time
     helper.__time_value(results)
     return results
 
-
+# 获取应用性能中图像资源的平均加载时间，并生成图表数据。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于确定时间间隔，默认为19。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含图像资源平均加载时间的列表，按时间生成图表数据。
 def get_performance_avg_image_load_time(cur, project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=19, **args):
     step_size = __get_step_size(endTimestamp=endTimestamp, startTimestamp=startTimestamp, density=density, factor=1)
     img_constraints = []
@@ -1979,7 +2461,15 @@ def get_performance_avg_image_load_time(cur, project_id, startTimestamp=TimeUTC.
 
     return rows
 
-
+# 获取指定时间段内页面加载的平均时间。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳。
+# - endTimestamp: 结束时间戳。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 包含页面加载平均时间的字典。
 def __get_application_activity_avg_page_load_time(cur, project_id, startTimestamp, endTimestamp, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("pages.timestamp >= %(startTimestamp)s")
@@ -1996,7 +2486,14 @@ def __get_application_activity_avg_page_load_time(cur, project_id, startTimestam
     helper.__time_value(row)
     return row
 
-
+# 获取应用活动中页面加载的平均时间，并生成图表数据。
+# 参数：
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含页面加载平均时间和进度数据的字典。
 def get_application_activity_avg_page_load_time(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     with pg_client.PostgresClient() as cur:
         row = __get_application_activity_avg_page_load_time(cur, project_id, startTimestamp, endTimestamp, **args)
@@ -2011,7 +2508,16 @@ def get_application_activity_avg_page_load_time(project_id, startTimestamp=TimeU
     helper.__time_value(results)
     return results
 
-
+# 获取应用性能中页面加载的平均时间，并生成图表数据。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于确定时间间隔，默认为19。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含页面加载平均时间的列表，按时间生成图表数据。
 def get_performance_avg_page_load_time(cur, project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=19, **args):
     step_size = __get_step_size(endTimestamp=endTimestamp, startTimestamp=startTimestamp, density=density, factor=1)
     location_constraints = []
@@ -2040,7 +2546,15 @@ def get_performance_avg_page_load_time(cur, project_id, startTimestamp=TimeUTC.n
     rows = cur.fetchall()
     return rows
 
-
+# 获取指定时间段内请求资源的平均加载时间。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳。
+# - endTimestamp: 结束时间戳。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 包含请求资源平均加载时间的字典。
 def __get_application_activity_avg_request_load_time(cur, project_id, startTimestamp, endTimestamp, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("resources.duration > 0")
@@ -2056,7 +2570,14 @@ def __get_application_activity_avg_request_load_time(cur, project_id, startTimes
     helper.__time_value(row)
     return row
 
-
+# 获取应用活动中请求资源的平均加载时间，并生成图表数据。
+# 参数：
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含请求资源平均加载时间和进度数据的字典。
 def get_application_activity_avg_request_load_time(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     with pg_client.PostgresClient() as cur:
         row = __get_application_activity_avg_request_load_time(cur, project_id, startTimestamp, endTimestamp, **args)
@@ -2071,7 +2592,16 @@ def get_application_activity_avg_request_load_time(project_id, startTimestamp=Ti
     helper.__time_value(results)
     return results
 
-
+# 获取应用性能中请求资源的平均加载时间，并生成图表数据。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - density: 数据密度，用于确定时间间隔，默认为19。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含请求资源平均加载时间的列表，按时间生成图表数据。
 def get_performance_avg_request_load_time(cur, project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=19, **args):
     step_size = __get_step_size(endTimestamp=endTimestamp, startTimestamp=startTimestamp, density=density, factor=1)
     request_constraints = []
@@ -2105,7 +2635,14 @@ def get_performance_avg_request_load_time(cur, project_id, startTimestamp=TimeUT
 
     return rows
 
-
+# 获取页面 DOM 内容加载开始的平均时间，并生成相应的图表数据。
+# 参数：
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含 DOM 内容加载平均时间和进度数据的字典。
 def get_page_metrics_avg_dom_content_load_start(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     with pg_client.PostgresClient() as cur:
         row = __get_page_metrics_avg_dom_content_load_start(cur, project_id, startTimestamp, endTimestamp, **args)
@@ -2120,7 +2657,15 @@ def get_page_metrics_avg_dom_content_load_start(project_id, startTimestamp=TimeU
     helper.__time_value(results)
     return results
 
-
+# 获取指定时间段内页面 DOM 内容加载的平均时间。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳。
+# - endTimestamp: 结束时间戳。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 包含页面 DOM 内容加载平均时间的字典。
 def __get_page_metrics_avg_dom_content_load_start(cur, project_id, startTimestamp, endTimestamp, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("pages.timestamp>=%(startTimestamp)s")
@@ -2137,7 +2682,16 @@ def __get_page_metrics_avg_dom_content_load_start(cur, project_id, startTimestam
     row = cur.fetchone()
     return row
 
-
+# 生成页面 DOM 内容加载平均时间的图表数据。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳。
+# - endTimestamp: 结束时间戳。
+# - density: 数据密度，用于确定时间间隔，默认为19。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 包含页面 DOM 内容加载平均时间的列表，按时间生成图表数据。
 def __get_page_metrics_avg_dom_content_load_start_chart(cur, project_id, startTimestamp, endTimestamp, density=19, **args):
     step_size = __get_step_size(endTimestamp=endTimestamp, startTimestamp=startTimestamp, density=density, factor=1)
     params = {"step_size": step_size, "project_id": project_id, "startTimestamp": startTimestamp, "endTimestamp": endTimestamp}
@@ -2165,7 +2719,14 @@ def __get_page_metrics_avg_dom_content_load_start_chart(cur, project_id, startTi
     rows = cur.fetchall()
     return rows
 
-
+# 获取页面的平均首屏绘制时间（First Contentful Paint），并生成相应的图表数据。
+# 参数：
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳，默认为当前时间的前一天。
+# - endTimestamp: 结束时间戳，默认为当前时间。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 一个包含首屏绘制平均时间和进度数据的字典。
 def get_page_metrics_avg_first_contentful_pixel(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     with pg_client.PostgresClient() as cur:
         rows = __get_page_metrics_avg_first_contentful_pixel(cur, project_id, startTimestamp, endTimestamp, **args)
@@ -2182,7 +2743,15 @@ def get_page_metrics_avg_first_contentful_pixel(project_id, startTimestamp=TimeU
     helper.__time_value(results)
     return results
 
-
+# 获取指定时间段内页面的平均首屏绘制时间（First Contentful Paint）。
+# 参数：
+# - cur: 数据库游标，用于执行SQL查询。
+# - project_id: 项目ID，表示要获取数据的项目。
+# - startTimestamp: 开始时间戳。
+# - endTimestamp: 结束时间戳。
+# - args: 其他可选参数，用于进一步筛选数据。
+# 返回值：
+# - 包含页面首屏绘制平均时间的字典。
 def __get_page_metrics_avg_first_contentful_pixel(cur, project_id, startTimestamp, endTimestamp, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("pages.timestamp>=%(startTimestamp)s")
@@ -2198,8 +2767,21 @@ def __get_page_metrics_avg_first_contentful_pixel(cur, project_id, startTimestam
     cur.execute(cur.mogrify(pg_query, params))
     rows = cur.fetchall()
     return rows
+# 这段代码的主要功能是通过查询数据库来获取和处理特定项目的用户活动数据、页面性能指标以及其他相关统计信息。它包括多种计算平均值、生成时间序列图表和跟踪用户行为进展的功能。代码通过使用多种内部函数和参数来生成复杂的SQL查询，并利用PostgreSQL的高级功能，如WITH子句和LATERAL JOIN，来优化查询性能。最终，结果以字典形式返回，适用于展示在图表或数据分析报告中。
 
 
+# 功能描述：
+# 获取项目的平均首内容绘制时间图表数据。
+
+# 参数：
+# cur: 数据库游标，用于执行SQL查询。
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳。
+# endTimestamp: 查询的结束时间戳。
+# density: 图表的密度，决定数据点的间隔，默认为20。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# rows: 包含图表数据的列表，每个元素包括时间戳和相应的平均首内容绘制时间值。
 def __get_page_metrics_avg_first_contentful_pixel_chart(cur, project_id, startTimestamp, endTimestamp, density=20, **args):
     step_size = __get_step_size(endTimestamp=endTimestamp, startTimestamp=startTimestamp, density=density, factor=1)
     params = {"step_size": step_size, "project_id": project_id, "startTimestamp": startTimestamp, "endTimestamp": endTimestamp}
@@ -2227,7 +2809,16 @@ def __get_page_metrics_avg_first_contentful_pixel_chart(cur, project_id, startTi
     rows = cur.fetchall()
     return rows
 
+# 功能描述：
+# 获取项目的用户活动中平均访问页面数的统计数据，并生成相关图表和进度信息。
 
+# 参数：
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳，默认为当前时间的前一天。
+# endTimestamp: 查询的结束时间戳，默认为当前时间。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# results: 包含平均访问页面数、图表数据以及进度信息的字典。
 def get_user_activity_avg_visited_pages(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     with pg_client.PostgresClient() as cur:
         row = __get_user_activity_avg_visited_pages(cur, project_id, startTimestamp, endTimestamp, **args)
@@ -2244,7 +2835,17 @@ def get_user_activity_avg_visited_pages(project_id, startTimestamp=TimeUTC.now(d
     results["unit"] = schemas.TemplatePredefinedUnits.count
     return results
 
+# 功能描述：
+# 获取用户活动中平均访问页面数的具体数据。
 
+# 参数：
+# cur: 数据库游标，用于执行SQL查询。
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳。
+# endTimestamp: 查询的结束时间戳。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# row: 包含平均访问页面数的查询结果。
 def __get_user_activity_avg_visited_pages(cur, project_id, startTimestamp, endTimestamp, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("sessions.pages_count>0")
@@ -2257,7 +2858,18 @@ def __get_user_activity_avg_visited_pages(cur, project_id, startTimestamp, endTi
     row = cur.fetchone()
     return row
 
+# 功能描述：
+# 获取用户活动中平均访问页面数的时间序列图表数据。
 
+# 参数：
+# cur: 数据库游标，用于执行SQL查询。
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳。
+# endTimestamp: 查询的结束时间戳。
+# density: 图表的密度，决定数据点的间隔，默认为20。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# rows: 包含图表数据的列表，每个元素包括时间戳和相应的平均访问页面数值。
 def __get_user_activity_avg_visited_pages_chart(cur, project_id, startTimestamp, endTimestamp, density=20, **args):
     step_size = __get_step_size(endTimestamp=endTimestamp, startTimestamp=startTimestamp, density=density, factor=1)
     params = {"step_size": step_size, "project_id": project_id, "startTimestamp": startTimestamp, "endTimestamp": endTimestamp}
@@ -2283,7 +2895,16 @@ def __get_user_activity_avg_visited_pages_chart(cur, project_id, startTimestamp,
     rows = cur.fetchall()
     return rows
 
+# 功能描述：
+# 获取项目的用户活动中平均会话时长的统计数据，并生成相关图表和进度信息。
 
+# 参数：
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳，默认为当前时间的前一天。
+# endTimestamp: 查询的结束时间戳，默认为当前时间。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# results: 包含平均会话时长、图表数据以及进度信息的字典。
 def get_user_activity_avg_session_duration(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), **args):
     with pg_client.PostgresClient() as cur:
         row = __get_user_activity_avg_session_duration(cur, project_id, startTimestamp, endTimestamp, **args)
@@ -2300,7 +2921,17 @@ def get_user_activity_avg_session_duration(project_id, startTimestamp=TimeUTC.no
     helper.__time_value(results)
     return results
 
+# 功能描述：
+# 获取用户活动中平均会话时长的具体数据。
 
+# 参数：
+# cur: 数据库游标，用于执行SQL查询。
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳。
+# endTimestamp: 查询的结束时间戳。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# row: 包含平均会话时长的查询结果。
 def __get_user_activity_avg_session_duration(cur, project_id, startTimestamp, endTimestamp, **args):
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
     pg_sub_query.append("sessions.duration IS NOT NULL")
@@ -2314,7 +2945,18 @@ def __get_user_activity_avg_session_duration(cur, project_id, startTimestamp, en
     row = cur.fetchone()
     return row
 
+# 功能描述：
+# 获取用户活动中平均会话时长的时间序列图表数据。
 
+# 参数：
+# cur: 数据库游标，用于执行SQL查询。
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳。
+# endTimestamp: 查询的结束时间戳。
+# density: 图表的密度，决定数据点的间隔，默认为20。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# rows: 包含图表数据的列表，每个元素包括时间戳和相应的平均会话时长值。
 def __get_user_activity_avg_session_duration_chart(cur, project_id, startTimestamp, endTimestamp, density=20, **args):
     step_size = __get_step_size(endTimestamp=endTimestamp, startTimestamp=startTimestamp, density=density, factor=1)
     params = {"step_size": step_size, "project_id": project_id, "startTimestamp": startTimestamp, "endTimestamp": endTimestamp}
@@ -2341,7 +2983,18 @@ def __get_user_activity_avg_session_duration_chart(cur, project_id, startTimesta
     rows = cur.fetchall()
     return rows
 
+# 功能描述：
+# 获取项目中页面响应时间的平均值及其图表数据。
 
+# 参数：
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳，默认为当前时间的前一天。
+# endTimestamp: 查询的结束时间戳，默认为当前时间。
+# value: 特定页面路径值，用于过滤查询。
+# density: 图表的密度，决定数据点的间隔，默认为20。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# row: 包含平均响应时间、图表数据和进度信息的字典。
 def get_top_metrics_avg_response_time(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), value=None, density=20, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -2377,7 +3030,18 @@ def get_top_metrics_avg_response_time(project_id, startTimestamp=TimeUTC.now(del
     helper.__time_value(row)
     return helper.dict_to_camel_case(row)
 
+# 功能描述：
+# 获取项目中页面的平均首次绘制时间及其图表数据。
 
+# 参数：
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳，默认为当前时间的前一天。
+# endTimestamp: 查询的结束时间戳，默认为当前时间。
+# value: 特定页面路径值，用于过滤查询。
+# density: 图表的密度，决定数据点的间隔，默认为20。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# row: 包含平均首次绘制时间、图表数据和进度信息的字典。
 def get_top_metrics_avg_first_paint(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), value=None, density=20, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -2413,7 +3077,18 @@ def get_top_metrics_avg_first_paint(project_id, startTimestamp=TimeUTC.now(delta
     helper.__time_value(row)
     return helper.dict_to_camel_case(row)
 
+# 功能描述：
+# 获取项目中页面的平均DOM内容加载时间及其图表数据。
 
+# 参数：
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳，默认为当前时间的前一天。
+# endTimestamp: 查询的结束时间戳，默认为当前时间。
+# value: 特定页面路径值，用于过滤查询。
+# density: 图表的密度，决定数据点的间隔，默认为19。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# row: 包含平均DOM内容加载时间、图表数据和进度信息的字典。
 def get_top_metrics_avg_dom_content_loaded(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), value=None, density=19, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -2451,7 +3126,18 @@ def get_top_metrics_avg_dom_content_loaded(project_id, startTimestamp=TimeUTC.no
     helper.__time_value(row)
     return helper.dict_to_camel_case(row)
 
+# 功能描述：
+# 获取项目中页面的平均首字节时间及其图表数据。
 
+# 参数：
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳，默认为当前时间的前一天。
+# endTimestamp: 查询的结束时间戳，默认为当前时间。
+# value: 特定页面路径值，用于过滤查询。
+# density: 图表的密度，决定数据点的间隔，默认为20。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# row: 包含平均首字节时间、图表数据和进度信息的字典。
 def get_top_metrics_avg_till_first_bit(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), value=None, density=20, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -2487,7 +3173,18 @@ def get_top_metrics_avg_till_first_bit(project_id, startTimestamp=TimeUTC.now(de
     helper.__time_value(row)
     return helper.dict_to_camel_case(row)
 
+# 功能描述：
+# 获取项目中页面的平均可交互时间及其图表数据。
 
+# 参数：
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳，默认为当前时间的前一天。
+# endTimestamp: 查询的结束时间戳，默认为当前时间。
+# value: 特定页面路径值，用于过滤查询。
+# density: 图表的密度，决定数据点的间隔，默认为20。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# row: 包含平均可交互时间、图表数据和进度信息的字典。
 def get_top_metrics_avg_time_to_interactive(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), value=None, density=20, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)
@@ -2524,7 +3221,18 @@ def get_top_metrics_avg_time_to_interactive(project_id, startTimestamp=TimeUTC.n
     helper.__time_value(row)
     return helper.dict_to_camel_case(row)
 
+# 功能描述：
+# 获取项目中页面请求的总数及其时间序列图表数据。
 
+# 参数：
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳，默认为当前时间的前一天。
+# endTimestamp: 查询的结束时间戳，默认为当前时间。
+# value: 特定页面路径值，用于过滤查询。
+# density: 图表的密度，决定数据点的间隔，默认为20。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# row: 包含请求总数、图表数据和进度信息的字典。
 def get_top_metrics_count_requests(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), value=None, density=20, **args):
     step_size = __get_step_size(endTimestamp=endTimestamp, startTimestamp=startTimestamp, density=density, factor=1)
     params = {"step_size": step_size, "project_id": project_id, "startTimestamp": startTimestamp, "endTimestamp": endTimestamp}
@@ -2560,7 +3268,17 @@ def get_top_metrics_count_requests(project_id, startTimestamp=TimeUTC.now(delta_
     row["unit"] = schemas.TemplatePredefinedUnits.count
     return helper.dict_to_camel_case(row)
 
+# 功能描述：
+# 获取项目中唯一用户的数量及其时间序列图表数据。
 
+# 参数：
+# project_id: 项目ID，用于标识需要获取数据的特定项目。
+# startTimestamp: 查询的开始时间戳，默认为当前时间的前一天。
+# endTimestamp: 查询的结束时间戳，默认为当前时间。
+# density: 图表的密度，决定数据点的间隔，默认为7。
+# args: 其他可选参数，传递给SQL查询的约束条件。
+# 返回值：
+# results: 包含唯一用户数、图表数据和进度信息的字典。
 def get_unique_users(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimestamp=TimeUTC.now(), density=7, **args):
     step_size = __get_step_size(startTimestamp, endTimestamp, density, factor=1)
     pg_sub_query = __get_constraints(project_id=project_id, data=args)

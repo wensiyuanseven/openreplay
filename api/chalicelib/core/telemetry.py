@@ -1,8 +1,15 @@
+# 该脚本主要用于租户管理系统中，帮助开发者自动化地收集、更新并上传租户的使用数据和统计信息。
 from chalicelib.utils import pg_client
 import requests
 from chalicelib.core import license
+# 该脚本主要用于管理和维护租户管理系统中的租户统计信息和使用数据。它自动化地收集租户的使用数据并将其发送到指定的远程服务器，以便进行统计和分析。此功能帮助开发者跟踪租户的使用情况并进行相关的系统管理。
 
-
+# 功能描述:
+# 将从数据库中提取的租户信息转换为所需的格式，以便发送到远程服务器进行处理。
+# 参数:
+# data: 包含租户信息的字典，从数据库中提取。
+# 返回值:
+# 返回一个格式化后的字典，包含了租户的关键信息，如版本号、用户ID、项目数、会话数等。
 def process_data(data):
     return {
         "edition": license.EDITION,
@@ -18,7 +25,8 @@ def process_data(data):
         "integrations_count": data["t_integrations"],
     }
 
-
+# 功能描述:
+# 计算并更新租户的统计数据，然后将这些数据发送到远程服务器以进行进一步的处理。
 # compute() 函数 用于定期更新并发送租户的统计数据。
 def compute():
     with pg_client.PostgresClient(long_query=True) as cur:
@@ -61,7 +69,7 @@ def compute():
 
             requests.post("https://api.openreplay.com/os/telemetry", json={"stats": [process_data(data)]})
 
-
+# 在新租户注册时，向远程服务器发送包含初始信息的数据包。
 # new_client() 函数 用于在新客户端注册时发送初始信息。
 def new_client():
     with pg_client.PostgresClient() as cur:

@@ -1,3 +1,5 @@
+# 这段代码是一个复杂的分析工具，用于处理用户行为路径分析、用户留存率分析、用户获取分析、功能使用频率分析、用户活跃度分析等多种分析任务。
+# 它使用了PostgreSQL数据库中的高级查询功能，通过动态构建SQL查询语句来实现复杂的数据过滤、聚合和计算。代码涉及的数据操作包括时间序列分析、用户行为事件的提取、路径追踪、会话数据的过滤和汇总等。
 from typing import List
 
 import schemas
@@ -12,7 +14,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# 功能描述：
+# 将数据库查询结果转换为路径分析的节点和链接数据结构，以便进行可视化展示。
 
+# 参数：
+# rows: 从数据库查询返回的行数据，包含用户行为事件的详细信息。
+# reverse_path: 布尔值，表示路径是否反转。如果为True，则路径的源和目标会交换。
+# 返回值：
+# result: 一个字典，包含路径分析的节点数据和链接数据。
 def __transform_journey(rows, reverse_path=False):
     total_100p = 0
     number_of_step1 = 0
@@ -64,7 +73,13 @@ def __transform_journey(rows, reverse_path=False):
 
     return {"nodes": nodes_values, "links": sorted(links, key=lambda x: (x["source"], x["target"]), reverse=False)}
 
-
+# 功能描述：
+# 定义了不同用户行为事件类型对应的数据库表和列名，用于构建SQL查询。
+# 字典条目说明：
+# location: 用户访问页面的事件类型，映射到events.pages表的path列。
+# click: 用户点击事件，映射到events.clicks表的label列。
+# input: 用户输入事件，映射到events.inputs表的label列。
+# custom_event: 用户自定义事件，映射到events_common.customs表的name列。
 JOURNEY_TYPES = {
     schemas.ProductAnalyticsSelectedEventType.location: {"table": "events.pages", "column": "path"},
     schemas.ProductAnalyticsSelectedEventType.click: {"table": "events.clicks", "column": "label"},
@@ -72,7 +87,18 @@ JOURNEY_TYPES = {
     schemas.ProductAnalyticsSelectedEventType.custom_event: {"table": "events_common.customs", "column": "name"},
 }
 
+# 功能描述：
+# 执行路径分析，生成用户行为路径的可视化数据，包括节点和链接信息。
 
+# 参数：
+# project_id: 项目ID，用于标识需要分析的特定项目。
+# data: schemas.CardPathAnalysis类型，包含路径分析的各种配置参数和过滤条件。
+# 返回值：
+# result: 一个字典，包含路径分析的结果数据，包括节点数据和链接数据。
+# 注意事项
+# 该代码片段使用了大量的SQL查询生成逻辑，并通过动态条件来调整查询语句。它适用于高度定制化的用户行为分析系统。
+# 部分功能（如users_retention、feature_retention等）已经被注释，可能是因为这些功能暂时不需要或正在开发中。
+# 这段代码为路径分析和用户行为分析提供了强大的功能，适用于需要深入分析用户行为的系统。如果有进一步的问题，或者需要更多的帮助，请随时告知我！
 # query: Q5, the result is correct,
 # startPoints are computed before ranked_events to reduce the number of window functions over rows
 # replaced time_to_target by time_from_previous

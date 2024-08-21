@@ -12,6 +12,11 @@ from chalicelib.utils import smtp
 logger = logging.getLogger(__name__)
 
 
+# 从指定的文件中读取 HTML 模板，并根据传入的 formatting_variables 字典进行字符串替换和格式化，最终返回格式化后的 HTML 内容。
+# source: 这是一个字符串，表示 HTML 模板文件的路径。
+# formatting_variables: 这是一个字典，包含要插入到 HTML 模板中的变量和对应的值。如果未传入该参数，则默认为空字典。
+# 返回格式化后的 HTML:
+# 最终返回经过格式化处理后的 BODY_HTML，其中的占位符已经被相应的变量值替换。
 def __get_html_from_file(source, formatting_variables):
     if formatting_variables is None:
         formatting_variables = {}
@@ -42,6 +47,7 @@ def __replace_images(HTML):
             mime_img.append(MIMEImage(img_data))
             mime_img[-1].add_header("Content-ID", f"<{cid}>")
     return HTML, mime_img
+
 
 # send_html 函数的作用是：
 # 处理包含图片的 HTML 正文，确保图片在邮件中正确显示。

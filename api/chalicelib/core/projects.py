@@ -1,3 +1,6 @@
+# 这段代码实现了一个与项目管理相关的API，用于管理项目的创建、编辑、删除以及各种项目相关的操作。它主要通过PostgreSQL数据库执行各种操作，并通过FastAPI框架进行接口处理。
+# 这段代码为项目管理提供了全面的API支持，涵盖了项目的创建、编辑、删除、条件管理、捕获状态管理等操作。通过这种方式，系统可以灵活地管理和操控项目数据。如果有进一步的问题或需要更多帮助，请随时告知我！
+# 这些操作包括但不限于项目的创建、更新、删除、条件验证、获取项目信息等。
 import json
 from typing import Optional, List
 from collections import Counter
@@ -9,7 +12,14 @@ from chalicelib.core import users
 from chalicelib.utils import pg_client, helper
 from chalicelib.utils.TimeUTC import TimeUTC
 
+# 功能描述：
+# 检查给定的项目名称在数据库中是否已存在，并排除特定项目ID（如果提供）。
 
+# 参数：
+# name: 要检查的项目名称。
+# exclude_id: 可选参数，如果提供此ID，则在检查时排除这个ID对应的项目。
+# 返回值：
+# bool: 如果项目名称已存在则返回True，否则返回False。
 def __exists_by_name(name: str, exclude_id: Optional[int]) -> bool:
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""SELECT EXISTS(SELECT 1
@@ -23,7 +33,15 @@ def __exists_by_name(name: str, exclude_id: Optional[int]) -> bool:
         row = cur.fetchone()
         return row["exists"]
 
+# 功能描述：
+# 更新指定项目的指定字段值。
 
+# 参数：
+# tenant_id: 租户ID，用于多租户的支持。
+# project_id: 要更新的项目ID。
+# changes: 要更新的字段和值的字典。
+# 返回值：
+# dict: 包含更新后的项目信息的字典。
 def __update(tenant_id, project_id, changes):
     if len(changes.keys()) == 0:
         return None
@@ -41,7 +59,14 @@ def __update(tenant_id, project_id, changes):
         cur.execute(query=query)
         return helper.dict_to_camel_case(cur.fetchone())
 
+# 功能描述：
+# 创建一个新的项目，并返回该项目的详细信息。
 
+# 参数：
+# tenant_id: 租户ID。
+# data: 包含项目创建所需数据的字典。
+# 返回值：
+# dict: 新创建项目的详细信息。
 def __create(tenant_id, data):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""INSERT INTO public.projects (name, platform, active)
@@ -52,7 +77,15 @@ def __create(tenant_id, data):
         project_id = cur.fetchone()["project_id"]
     return get_project(tenant_id=tenant_id, project_id=project_id, include_gdpr=True)
 
+# 功能描述：
+# 获取所有项目的列表，并根据提供的参数返回包含GDPR信息或记录状态的信息。
 
+# 参数：
+# tenant_id: 租户ID。
+# gdpr: 布尔值，是否包含GDPR信息。
+# recorded: 布尔值，是否包含记录状态的信息。
+# 返回值：
+# List[dict]: 项目信息的列表，每个字典包含一个项目的详细信息。
 def get_projects(tenant_id: int, gdpr: bool = False, recorded: bool = False):
     with pg_client.PostgresClient() as cur:
         extra_projection = ""
@@ -108,7 +141,16 @@ def get_projects(tenant_id: int, gdpr: bool = False, recorded: bool = False):
 
         return helper.list_to_camel_case(rows)
 
+# 功能描述：
+# 获取指定项目的详细信息，并可选地包含最后一个会话的时间戳和GDPR信息。
 
+# 参数：
+# tenant_id: 租户ID。
+# project_id: 要获取详细信息的项目ID。
+# include_last_session: 布尔值，是否包含最后一个会话的时间戳。
+# include_gdpr: 布尔值，是否包含GDPR信息。
+# 返回值：
+# dict: 包含项目详细信息的字典。
 def get_project(tenant_id, project_id, include_last_session=False, include_gdpr=None):
     with pg_client.PostgresClient() as cur:
         extra_select = ""
@@ -133,7 +175,16 @@ def get_project(tenant_id, project_id, include_last_session=False, include_gdpr=
         row = cur.fetchone()
         return helper.dict_to_camel_case(row)
 
+# 功能描述：
+# 创建一个新项目，并在创建前检查项目名称是否已经存在。如果用户没有足够的权限，则会返回未经授权的错误。
 
+# 参数：
+# tenant_id: 租户ID。
+# user_id: 用户ID，用于权限检查。
+# data: schemas.CreateProjectSchema类型，包含项目创建所需数据。
+# skip_authorization: 布尔值，是否跳过权限检查。
+# 返回值：
+# dict: 包含创建成功后的项目信息或错误信息的字典。
 def create(tenant_id, user_id, data: schemas.CreateProjectSchema, skip_authorization=False):
     if __exists_by_name(name=data.name, exclude_id=None):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"name already exists.")
@@ -143,7 +194,16 @@ def create(tenant_id, user_id, data: schemas.CreateProjectSchema, skip_authoriza
             return {"errors": ["unauthorized"]}
     return {"data": __create(tenant_id=tenant_id, data=data.model_dump())}
 
+# 功能描述：
+# 编辑指定项目的详细信息，并在编辑前检查项目名称是否已经存在。如果用户没有足够的权限，则会返回未经授权的错误。
 
+# 参数：
+# tenant_id: 租户ID。
+# user_id: 用户ID，用于权限检查。
+# project_id: 要编辑的项目ID。
+# data: schemas.CreateProjectSchema类型，包含项目编辑所需数据。
+# 返回值：
+# dict: 包含编辑成功后的项目信息或错误信息的字典。
 def edit(tenant_id, user_id, project_id, data: schemas.CreateProjectSchema):
     if __exists_by_name(name=data.name, exclude_id=project_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"name already exists.")
@@ -153,7 +213,15 @@ def edit(tenant_id, user_id, project_id, data: schemas.CreateProjectSchema):
     return {"data": __update(tenant_id=tenant_id, project_id=project_id,
                              changes=data.model_dump())}
 
+# 功能描述：
+# 删除指定的项目，并将其标记为非活跃状态。
 
+# 参数：
+# tenant_id: 租户ID。
+# user_id: 用户ID，用于权限检查。
+# project_id: 要删除的项目ID。
+# 返回值：
+# dict: 包含删除状态的信息。
 def delete(tenant_id, user_id, project_id):
     admin = users.get(user_id=user_id, tenant_id=tenant_id)
 
@@ -168,7 +236,13 @@ def delete(tenant_id, user_id, project_id):
         cur.execute(query=query)
     return {"data": {"state": "success"}}
 
+# 功能描述：
+# 获取指定项目的GDPR信息。
 
+# 参数：
+# project_id: 要获取GDPR信息的项目ID。
+# 返回值：
+# dict: 包含项目GDPR信息的字典。
 def get_gdpr(project_id):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify("""SELECT gdpr
@@ -181,7 +255,14 @@ def get_gdpr(project_id):
         row["projectId"] = project_id
         return row
 
+# 功能描述：
+# 编辑指定项目的GDPR信息，并将新信息合并到现有信息中。
 
+# 参数：
+# project_id: 要编辑GDPR信息的项目ID。
+# gdpr: schemas.GdprSchema类型，包含新的GDPR信息。
+# 返回值：
+# dict: 包含更新后GDPR信息的字典或错误信息。
 def edit_gdpr(project_id, gdpr: schemas.GdprSchema):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify("""UPDATE public.projects 
@@ -198,7 +279,13 @@ def edit_gdpr(project_id, gdpr: schemas.GdprSchema):
         row["projectId"] = project_id
         return row
 
+# 功能描述：
+# 通过项目密钥获取项目的基本信息。
 
+# 参数：
+# project_key: 项目密钥。
+# 返回值：
+# dict: 包含项目基本信息的字典。
 def get_by_project_key(project_key):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify("""SELECT project_id,
@@ -213,7 +300,13 @@ def get_by_project_key(project_key):
         row = cur.fetchone()
         return helper.dict_to_camel_case(row)
 
+# 功能描述：
+# 获取指定项目的项目密钥。
 
+# 参数：
+# project_id: 要获取密钥的项目ID。
+# 返回值：
+# str: 项目的密钥字符串。
 def get_project_key(project_id):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify("""SELECT project_key
@@ -225,7 +318,14 @@ def get_project_key(project_id):
         project = cur.fetchone()
         return project["project_key"] if project is not None else None
 
+# 函数：get_capture_status
+# 功能描述：
+# 获取指定项目的捕获状态信息，包括采样率和是否捕获所有数据的标志。
 
+# 参数：
+# project_id: 要获取捕获状态的项目ID。
+# 返回值：
+# dict: 包含采样率和捕获状态的字典。
 def get_capture_status(project_id):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify("""SELECT sample_rate AS rate, sample_rate=100 AS capture_all
@@ -236,7 +336,15 @@ def get_capture_status(project_id):
         cur.execute(query=query)
         return helper.dict_to_camel_case(cur.fetchone())
 
+# 函数：update_capture_status
+# 功能描述：
+# 更新指定项目的捕获状态，包括采样率和是否捕获所有数据。
 
+# 参数：
+# project_id: 要更新捕获状态的项目ID。
+# changes: schemas.SampleRateSchema类型，包含新的采样率和捕获状态信息。
+# 返回值：
+# schemas.SampleRateSchema: 更新后的捕获状态信息。
 def update_capture_status(project_id, changes: schemas.SampleRateSchema):
     sample_rate = changes.rate
     if changes.capture_all:
@@ -251,7 +359,13 @@ def update_capture_status(project_id, changes: schemas.SampleRateSchema):
 
     return changes
 
+# 功能描述：
+# 获取指定项目的条件捕获设置和所有条件列表。
 
+# 参数：
+# project_id: 要获取条件捕获设置的项目ID。
+# 返回值：
+# dict: 包含条件捕获设置和所有条件列表的字典。
 def get_conditions(project_id):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify("""SELECT p.sample_rate AS rate, p.conditional_capture,
@@ -282,7 +396,14 @@ def get_conditions(project_id):
 
         return row
 
+# 函数：validate_conditions
+# 功能描述：
+# 验证条件列表，检查条件名称是否为空或重复。
 
+# 参数：
+# conditions: List[schemas.ProjectConditions]类型，包含要验证的条件列表。
+# 返回值：
+# List[str]: 包含验证错误信息的字符串列表。
 def validate_conditions(conditions: List[schemas.ProjectConditions]) -> List[str]:
     errors = []
     names = [condition.name for condition in conditions]
@@ -299,7 +420,15 @@ def validate_conditions(conditions: List[schemas.ProjectConditions]) -> List[str
 
     return errors
 
+# 函数：update_conditions
+# 功能描述：
+# 更新指定项目的条件捕获设置，并根据条件列表创建、更新或删除项目条件。
 
+# 参数：
+# project_id: 要更新条件捕获设置的项目ID。
+# changes: schemas.ProjectSettings类型，包含新的条件捕获设置和条件列表。
+# 返回值：
+# dict: 更新后的项目条件捕获设置。
 def update_conditions(project_id, changes: schemas.ProjectSettings):
     validation_errors = validate_conditions(changes.conditions)
     if validation_errors:
@@ -325,7 +454,14 @@ def update_conditions(project_id, changes: schemas.ProjectSettings):
 
     return update_project_conditions(project_id, changes.conditions)
 
+# 功能描述：
+# 批量创建新的项目条件。
 
+# 参数：
+# project_id: 项目ID。
+# conditions: 包含要创建的条件列表。
+# 返回值：
+# List[dict]: 新创建的项目条件的详细信息列表。
 def create_project_conditions(project_id, conditions):
     rows = []
 
@@ -355,7 +491,14 @@ def create_project_conditions(project_id, conditions):
 
     return rows
 
+# 功能描述：
+# 更新项目条件，批量更新指定条件列表中的信息。
 
+# 参数：
+# project_id: 项目ID。
+# conditions: 要更新的条件列表。
+# 返回值：
+# None: 无返回值。
 def update_project_condition(project_id, conditions):
     values = []
     params = {
@@ -379,7 +522,14 @@ def update_project_condition(project_id, conditions):
         query = cur.mogrify(sql, params)
         cur.execute(query)
 
+# 功能描述：
+# 删除指定的项目条件。
 
+# 参数：
+# project_id: 项目ID。
+# ids: 要删除的条件ID列表。
+# 返回值：
+# None: 无返回值。
 def delete_project_condition(project_id, ids):
     sql = """
         DELETE FROM projects_conditions
@@ -391,7 +541,14 @@ def delete_project_condition(project_id, ids):
         query = cur.mogrify(sql, {"project_id": project_id, "ids": tuple(ids)})
         cur.execute(query)
 
+# 功能描述：
+# 根据传入的条件列表，批量创建、更新或删除项目条件。
 
+# 参数：
+# project_id: 项目ID。
+# conditions: 条件列表。
+# 返回值：
+# dict: 更新后的项目条件捕获设置。
 def update_project_conditions(project_id, conditions):
     if conditions is None:
         return
@@ -415,7 +572,13 @@ def update_project_conditions(project_id, conditions):
 
     return get_conditions(project_id)
 
+# 功能描述：
+# 获取所有项目的ID列表。
 
+# 参数：
+# tenant_id: 租户ID。
+# 返回值：
+# List[int]: 项目ID的列表。
 def get_projects_ids(tenant_id):
     with pg_client.PostgresClient() as cur:
         query = f"""SELECT s.project_id

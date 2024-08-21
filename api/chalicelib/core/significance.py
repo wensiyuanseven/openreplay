@@ -3,7 +3,8 @@ import logging
 import schemas
 from chalicelib.core import events, metadata
 from chalicelib.utils import sql_helper as sh
-
+# 这段代码提供了一系列函数，用于在数据库中检索和分析用户行为数据，特别是与用户会话相关的事件和问题。代码旨在帮助识别影响用户行为转换率的关键问题，
+# 并评估这些问题对整体用户体验的影响。这些功能通常用于数据分析平台，以便在项目中识别和解决用户体验中的问题。
 """
 todo: remove LIMIT from the query
 """
@@ -24,7 +25,16 @@ T_VALUES = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.36
             21: 2.080, 22: 2.074, 23: 2.069, 24: 2.067, 25: 2.064, 26: 2.060, 27: 2.056, 28: 2.052, 29: 2.045,
             30: 2.042}
 
+# 功能描述:
+# 该函数用于根据给定的过滤条件和事件，从数据库中检索相关的用户会话数据，并生成各阶段的查询结果。
 
+# 参数:
+
+# filter_d: 包含过滤条件和事件信息的字典。
+# project_id: 项目 ID，用于限定查询的范围。
+# 返回值:
+
+# List[RealDictRow]: 包含会话数据的列表，按照阶段进行分组。
 def get_stages_and_events(filter_d: schemas.CardSeriesFilterSchema, project_id) -> List[RealDictRow]:
     """
     Add minimal timestamp
@@ -237,7 +247,17 @@ def get_stages_and_events(filter_d: schemas.CardSeriesFilterSchema, project_id) 
             r["user_id"] = None
     return rows
 
+# 函数 pearson_corr
+# 功能描述:
+# 该函数计算两个列表之间的皮尔逊相关系数，以评估它们之间的线性相关性。
 
+# 参数:
+
+# x: 列表，表示变量 X 的数据。
+# y: 列表，表示变量 Y 的数据。
+# 返回值:
+
+# (float, float, bool): 返回相关系数、置信度以及相关性是否显著的元组。
 def pearson_corr(x: list, y: list):
     n = len(x)
     if n != len(y):
@@ -303,13 +323,34 @@ def pearson_corr(x: list, y: list):
 #     return x
 #
 # The following function is correct optimization of the previous function because t is a list of 0,1
+# 函数 tuple_or
+# 功能描述:
+# 该函数计算一个元组的按位或运算，优化了元组中包含二进制值（0 或 1）的操作。
+
+# 参数:
+
+# t: 元组，包含二进制值。
+# 返回值:
+
+# int: 如果元组中包含至少一个 1，返回 1，否则返回 0。
 def tuple_or(t: tuple):
     for el in t:
         if el > 0:
             return 1
     return 0
 
+# 功能描述:
+# 该函数根据用户会话数据，识别每个用户在不同阶段之间的转换，并统计每种类型的问题在这些阶段之间的发生情况。
 
+# 参数:
+
+# rows: 包含会话数据的列表。
+# all_issues: 包含所有问题的字典。
+# first_stage: 第一个阶段的索引。
+# last_stage: 最后一个阶段的索引。
+# 返回值:
+
+# (list, dict, list, int): 返回转换列表、错误字典、所有错误的二进制列表以及受影响的会话数。
 def get_transitions_and_issues_of_each_type(rows: List[RealDictRow], all_issues, first_stage, last_stage):
     """
     Returns two lists with binary values 0/1:
@@ -360,7 +401,17 @@ def get_transitions_and_issues_of_each_type(rows: List[RealDictRow], all_issues,
 
     return transitions, errors, all_errors, n_sess_affected
 
+# 功能描述:
+# 该函数识别并统计在指定阶段之间，所有会话中每个问题的影响范围，包括受影响的用户和会话数量。
 
+# 参数:
+
+# rows: 包含会话数据的列表。
+# first_stage: 第一个阶段的索引。
+# last_stage: 最后一个阶段的索引。
+# 返回值:
+
+# (dict, dict, dict, dict): 返回所有问题的字典、问题数量字典、受影响用户数量字典和受影响会话数量字典。
 def get_affected_users_for_all_issues(rows, first_stage, last_stage):
     """
 
@@ -408,7 +459,16 @@ def get_affected_users_for_all_issues(rows, first_stage, last_stage):
         })
     return all_issues, n_issues_dict, n_affected_users_dict, n_affected_sessions_dict
 
+# 功能描述:
+# 该函数统计在每个阶段中，参与会话的数量。
 
+# 参数:
+
+# rows: 包含会话数据的列表。
+# n_stages: 阶段的数量。
+# 返回值:
+
+# dict: 返回每个阶段的会话数量字典。
 def count_sessions(rows, n_stages):
     session_counts = {i: set() for i in range(1, n_stages + 1)}
     for row in rows:
@@ -419,7 +479,17 @@ def count_sessions(rows, n_stages):
     session_counts = {i: len(session_counts[i]) for i in session_counts}
     return session_counts
 
+# 功能描述:
+# 该函数统计在每个阶段中，参与用户的数量。
 
+# 参数:
+
+# rows: 包含会话数据的列表。
+# n_stages: 阶段的数量。
+# user_key: 用户唯一标识符的键名，默认为 user_uuid。
+# 返回值:
+
+# dict: 返回每个阶段的用户数量字典。
 def count_users(rows, n_stages, user_key="user_uuid"):
     users_in_stages = {i: set() for i in range(1, n_stages + 1)}
     for row in rows:
@@ -430,7 +500,17 @@ def count_users(rows, n_stages, user_key="user_uuid"):
     users_count = {i: len(users_in_stages[i]) for i in range(1, n_stages + 1)}
     return users_count
 
+# 功能描述:
+# 该函数根据会话数据，生成各阶段的统计信息，包括会话数量、用户数量以及阶段间的转换率。
 
+# 参数:
+
+# stages: 包含阶段信息的列表。
+# rows: 包含会话数据的列表。
+# metric_of: 衡量标准，如会话计数（session_count）或用户计数。
+# 返回值:
+
+# list: 返回阶段的统计信息列表。
 def get_stages(stages, rows, metric_of=schemas.MetricOfFunnels.session_count):
     n_stages = len(stages)
     if metric_of == "sessionCount":
@@ -463,7 +543,19 @@ def get_stages(stages, rows, metric_of=schemas.MetricOfFunnels.session_count):
 
     return stages_list
 
+# 功能描述:
+# 该函数根据会话数据，分析在各阶段之间的用户行为中，哪些问题对转换率产生了显著影响。
 
+# 参数:
+
+# stages: 包含阶段信息的列表。
+# rows: 包含会话数据的列表。
+# first_stage: 第一阶段的索引，默认为 None。
+# last_stage: 最后阶段的索引，默认为 None。
+# drop_only: 布尔值，表示是否只返回由于问题导致的掉落数量。
+# 返回值:
+
+# (int, dict, int): 返回关键问题的数量、问题字典以及由于问题导致的掉落数量。
 def get_issues(stages, rows, first_stage=None, last_stage=None, drop_only=False):
     """
 
@@ -542,6 +634,17 @@ def get_issues(stages, rows, first_stage=None, last_stage=None, drop_only=False)
 
     return n_critical_issues, issues_dict, total_drop_due_to_issues
 
+# 功能描述:
+# 该函数用于获取用户行为分析的顶级洞察，包括各阶段的统计信息和由于问题导致的掉落数量。
+
+# 参数:
+
+# filter_d: 包含过滤条件和事件信息的字典。
+# project_id: 项目 ID，用于限定查询的范围。
+# metric_of: 衡量标准，如会话计数或用户计数。
+# 返回值:
+
+# (list, int): 返回阶段的统计信息列表和由于问题导致的掉落数量。
 
 def get_top_insights(filter_d: schemas.CardSeriesFilterSchema, project_id, metric_of: schemas.MetricOfFunnels):
     output = []
@@ -565,7 +668,18 @@ def get_top_insights(filter_d: schemas.CardSeriesFilterSchema, project_id, metri
                                           drop_only=True)
     return stages_list, total_drop_due_to_issues
 
+# 功能描述:
+# 该函数生成一个问题列表，列出了在指定阶段之间，导致用户行为转换率下降的关键问题。
 
+# 参数:
+
+# filter_d: 包含过滤条件和事件信息的字典。
+# project_id: 项目 ID，用于限定查询的范围。
+# first_stage: 第一阶段的索引，默认为 None。
+# last_stage: 最后阶段的索引，默认为 None。
+# 返回值:
+
+# dict: 包含关键问题和由于问题导致的掉落数量的字典。
 def get_issues_list(filter_d: schemas.CardSeriesFilterSchema, project_id, first_stage=None, last_stage=None):
     output = dict({"total_drop_due_to_issues": 0, "critical_issues_count": 0, "significant": [], "insignificant": []})
     stages = filter_d.events

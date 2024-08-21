@@ -1,9 +1,12 @@
-import decimal
+# 这段代码是一个完整的告警监控处理系统的核心部分!!!。
+# 它从数据库中获取数据，依据预设的条件和规则判断是否触发告警，并生成通知以告知相关人员。代码中还处理了告警的各种复杂情况，如不同类型的告警检测方法、时间条件的处理等。
+import decimal  # 用于处理高精度的小数计算。
 import logging
 
 from decouple import config
-from pydantic_core._pydantic_core import ValidationError
+from pydantic_core._pydantic_core import ValidationError  # 用于处理数据验证错误。
 
+# 导入了自定义模块，用于告警的管理、监听、会话处理等。
 import schemas
 from chalicelib.core import alerts
 from chalicelib.core import alerts_listener
@@ -13,6 +16,7 @@ from chalicelib.utils.TimeUTC import TimeUTC
 
 logging.basicConfig(level=config("LOGLEVEL", default=logging.INFO))
 
+# 一个映射字典，将告警的左侧条件（如页面加载时间、图像加载时间等）映射到相应的 SQL 表和公式，用于生成 SQL 查询。
 LeftToDb = {
     schemas.AlertColumn.performance__dom_content_loaded__average: {
         "table": "events.pages INNER JOIN public.sessions USING(session_id)",
@@ -68,6 +72,8 @@ LeftToDb = {
 }
 
 # This is the frequency of execution for each threshold
+# 时间间隔映射
+# 定义了每个时间间隔的执行频率，单位是分钟。例如，15 分钟的时间间隔会每 3 分钟执行一次。
 TimeInterval = {
     15: 3,
     30: 5,
@@ -78,27 +84,20 @@ TimeInterval = {
 }
 
 
+# 告警检测函数  can_check：用于判断当前时间点是否需要检查某个告警，主要依据告警的创建时间、上次通知时间和重新通知间隔等条件进行计算。
 def can_check(a) -> bool:
     now = TimeUTC.now()
 
-    repetitionBase = (
-        a["options"]["currentPeriod"]
-        if a["detectionMethod"] == schemas.AlertDetectionMethod.change and a["options"]["currentPeriod"] > a["options"]["previousPeriod"]
-        else a["options"]["previousPeriod"]
-    )
+    repetitionBase = a["options"]["currentPeriod"] if a["detectionMethod"] == schemas.AlertDetectionMethod.change and a["options"]["currentPeriod"] > a["options"]["previousPeriod"] else a["options"]["previousPeriod"]
 
     if TimeInterval.get(repetitionBase) is None:
         logging.error(f"repetitionBase: {repetitionBase} NOT FOUND")
         return False
 
-    return (
-        a["options"]["renotifyInterval"] <= 0
-        or a["options"].get("lastNotification") is None
-        or a["options"]["lastNotification"] <= 0
-        or ((now - a["options"]["lastNotification"]) > a["options"]["renotifyInterval"] * 60 * 1000)
-    ) and ((now - a["createdAt"]) % (TimeInterval[repetitionBase] * 60 * 1000)) < 60 * 1000
+    return (a["options"]["renotifyInterval"] <= 0 or a["options"].get("lastNotification") is None or a["options"]["lastNotification"] <= 0 or ((now - a["options"]["lastNotification"]) > a["options"]["renotifyInterval"] * 60 * 1000)) and ((now - a["createdAt"]) % (TimeInterval[repetitionBase] * 60 * 1000)) < 60 * 1000
 
 
+# SQL 查询构建函数  根据告警的条件和参数，动态生成 SQL 查询语句。这个函数处理了不同类型的告警（阈值型、变化型等），并将参数传递给 SQL 查询。
 def Build(a):
     now = TimeUTC.now()
     params = {"project_id": a["projectId"], "now": now}
@@ -183,7 +182,7 @@ def Build(a):
 
     return q, params
 
-
+# 告警处理函数  它从 alerts_listener 中获取所有活跃的告警，检查每个告警是否需要执行查询，构建 SQL 查询并执行，最后根据查询结果生成通知。
 def process():
     notifications = []
     all_alerts = alerts_listener.get_all_alerts()
@@ -194,7 +193,7 @@ def process():
                 try:
                     query = cur.mogrify(query, params)
                 except Exception as e:
-                    logging.error(f"!!!Error while building alert query for alertId:{alert['alertId']} name: {alert['name']}")
+                    logging.error(f"!!!构建 alertId 警报查询时出错:{alert['alertId']} name: {alert['name']}")
                     logging.error(e)
                     continue
                 logging.debug(alert)
@@ -203,10 +202,10 @@ def process():
                     cur.execute(query)
                     result = cur.fetchone()
                     if result["valid"]:
-                        logging.info(f"Valid alert, notifying users, alertId:{alert['alertId']} name: {alert['name']}")
+                        logging.info(f"有效警报，通知用户, alertId:{alert['alertId']} name: {alert['name']}")
                         notifications.append(generate_notification(alert, result))
                 except Exception as e:
-                    logging.error(f"!!!Error while running alert query for alertId:{alert['alertId']} name: {alert['name']}")
+                    logging.error(f"!!!运行 alertId 警报查询时出错:{alert['alertId']} name: {alert['name']}")
                     logging.error(query)
                     logging.error(e)
                     cur = cur.recreate(rollback=True)
@@ -222,7 +221,7 @@ def process():
     if len(notifications) > 0:
         alerts.process_notifications(notifications)
 
-
+# 格式化告警结果中的数值，确保显示时保留适当的精度。
 def __format_value(x):
     if x % 1 == 0:
         x = int(x)
@@ -230,7 +229,7 @@ def __format_value(x):
         x = round(x, 2)
     return f"{x:,}"
 
-
+# 生成通知字典，包含告警的详细信息和通知的相关内容，用于推送给用户。
 def generate_notification(alert, result):
     left = __format_value(result["value"])
     right = __format_value(alert["query"]["right"])

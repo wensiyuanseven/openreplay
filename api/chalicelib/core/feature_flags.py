@@ -1,3 +1,5 @@
+# 这个代码片段主要负责处理与项目相关的功能标志（Feature Flags）的各种操作，包括创建、更新、删除、搜索、以及管理功能标志的条件和变体。
+# 功能标志是一种在项目中实现持续交付的重要工具，通过功能标志，可以有选择地启用或禁用特定的功能或代码路径。
 import schemas
 from chalicelib.utils import helper
 from chalicelib.utils import pg_client
@@ -6,7 +8,7 @@ from typing import Any, List, Dict, Optional
 from fastapi import HTTPException, status
 import json
 import logging
-
+# 定义功能标志表中需要查询的字段
 feature_flag_columns = (
     "feature_flag_id",
     "payload",
@@ -21,7 +23,13 @@ feature_flag_columns = (
     "updated_by",
 )
 
-
+# 检查在项目中是否已存在相同名称的功能标志
+# 参数：
+# - flag_key: 功能标志的键值。
+# - project_id: 项目ID。
+# - exclude_id: 可选参数，排除指定ID的功能标志。
+# 返回值：
+# - 返回布尔值，表示是否存在相同键值的功能标志。
 def exists_by_name(flag_key: str, project_id: int, exclude_id: Optional[int]) -> bool:
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""SELECT EXISTS(SELECT 1
@@ -35,7 +43,15 @@ def exists_by_name(flag_key: str, project_id: int, exclude_id: Optional[int]) ->
         row = cur.fetchone()
         return row["exists"]
 
-
+# 更新功能标志的状态（启用/禁用）
+# 参数：
+# - project_id: 项目ID。
+# - feature_flag_id: 功能标志ID。
+# - is_active: 布尔值，表示是否启用功能标志。
+# 返回值：
+# - 返回更新后的功能标志的状态。
+# 注意事项：
+# - 更新操作失败时，将抛出HTTP 400错误。
 def update_feature_flag_status(project_id: int, feature_flag_id: int, is_active: bool) -> Dict[str, Any]:
     try:
         with pg_client.PostgresClient() as cur:
@@ -52,7 +68,13 @@ def update_feature_flag_status(project_id: int, feature_flag_id: int, is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Failed to update feature flag status")
 
-
+# 搜索功能标志
+# 参数：
+# - project_id: 项目ID。
+# - user_id: 用户ID。
+# - data: 包含搜索条件的模式对象。
+# 返回值：
+# - 返回符合搜索条件的功能标志列表和总数。
 def search_feature_flags(project_id: int, user_id: int, data: schemas.SearchFlagsSchema) -> Dict[str, Any]:
     """
     Get all feature flags and their total count.
@@ -86,7 +108,13 @@ def search_feature_flags(project_id: int, user_id: int, data: schemas.SearchFlag
     results["list"] = rows
     return {"data": results}
 
-
+# 准备搜索功能标志时的SQL约束条件和参数
+# 参数：
+# - data: 包含搜索条件的模式对象。
+# - project_id: 项目ID。
+# - user_id: 用户ID。
+# 返回值：
+# - 返回SQL约束条件和参数字典
 def prepare_constraints_params_to_search(data, project_id, user_id):
     constraints = [
         "feature_flags.project_id = %(project_id)s",
@@ -109,7 +137,15 @@ def prepare_constraints_params_to_search(data, project_id, user_id):
                                                      op=schemas.SearchEventOperator._contains)
     return constraints, params
 
-
+# 创建新的功能标志
+# 参数：
+# - project_id: 项目ID。
+# - user_id: 用户ID。
+# - feature_flag_data: 包含功能标志数据的模式对象。
+# 返回值：
+# - 返回新创建的功能标志ID。
+# 注意事项：
+# - 如果功能标志是多变体类型且未提供变体，将抛出HTTP 400错误。
 def create_feature_flag(project_id: int, user_id: int, feature_flag_data: schemas.FeatureFlagSchema) -> Optional[int]:
     if feature_flag_data.flag_type == schemas.FeatureFlagType.multi_variant and len(feature_flag_data.variants) == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -186,19 +222,35 @@ def create_feature_flag(project_id: int, user_id: int, feature_flag_data: schema
 
     return get_feature_flag(project_id=project_id, feature_flag_id=row["feature_flag_id"])
 
-
+# 验证功能标志键值是否唯一
+# 参数：
+# - feature_flag_data: 功能标志数据对象。
+# - project_id: 项目ID。
+# - exclude_id: 可选的要排除的功能标志ID。
+# 注意事项：
+# - 如果功能标志键值已存在，将抛出HTTP 400错误。
 def validate_unique_flag_key(feature_flag_data, project_id, exclude_id=None):
     if exists_by_name(project_id=project_id, flag_key=feature_flag_data.flag_key, exclude_id=exclude_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Feature flag with key already exists.")
 
-
+# 验证多变体类型的功能标志
+# 参数：
+# - feature_flag_data: 功能标志数据对象。
+# 注意事项：
+# - 如果变体的分配百分比之和超过100%，将抛出HTTP 400错误。
 def validate_multi_variant_flag(feature_flag_data):
     if feature_flag_data.flag_type == schemas.FeatureFlagType.multi_variant:
         if sum([v.rollout_percentage for v in feature_flag_data.variants]) > 100:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail=f"Sum of rollout percentage for variants cannot be greater than 100.")
 
-
+# 准备创建功能标志时的SQL参数
+# 参数：
+# - feature_flag_data: 功能标志数据对象。
+# - project_id: 项目ID。
+# - user_id: 用户ID。
+# 返回值：
+# - 返回SQL参数字典
 def prepare_params_to_create_flag(feature_flag_data, project_id, user_id):
     conditions_data = prepare_conditions_values(feature_flag_data)
     variants_data = prepare_variants_values(feature_flag_data)
@@ -214,7 +266,11 @@ def prepare_params_to_create_flag(feature_flag_data, project_id, user_id):
 
     return params
 
-
+# 准备变体的SQL参数
+# 参数：
+# - feature_flag_data: 功能标志数据对象。
+# 返回值：
+# - 返回变体的SQL参数字典。
 def prepare_variants_values(feature_flag_data):
     variants_data = {}
     for i, v in enumerate(feature_flag_data.variants):
@@ -226,7 +282,11 @@ def prepare_variants_values(feature_flag_data):
         variants_data[f"v_rollout_percentage_{i}"] = v.rollout_percentage
     return variants_data
 
-
+# 准备条件的SQL参数
+# 参数：
+# - feature_flag_data: 功能标志数据对象。
+# 返回值：
+# - 返回条件的SQL参数字典。
 def prepare_conditions_values(feature_flag_data):
     conditions_data = {}
     for i, s in enumerate(feature_flag_data.conditions):
@@ -237,7 +297,14 @@ def prepare_conditions_values(feature_flag_data):
         conditions_data[f"filters_{i}"] = json.dumps([filter_.model_dump() for filter_ in s.filters])
     return conditions_data
 
-
+# 根据功能标志ID获取功能标志的详细信息
+# 参数：
+# - project_id: 项目ID。
+# - feature_flag_id: 功能标志ID。
+# 返回值：
+# - 返回功能标志的详细信息字典。
+# 注意事项：
+# - 如果功能标志未找到，返回包含错误信息的字典。
 def get_feature_flag(project_id: int, feature_flag_id: int) -> Optional[Dict[str, Any]]:
     conditions_query = """
             SELECT COALESCE(jsonb_agg(ffc ORDER BY condition_id), '[]'::jsonb) AS conditions
@@ -274,7 +341,12 @@ def get_feature_flag(project_id: int, feature_flag_id: int) -> Optional[Dict[str
 
     return {"data": helper.dict_to_camel_case(row)}
 
-
+# 创建新的功能标志条件
+# 参数：
+# - feature_flag_id: 功能标志ID。
+# - conditions: 功能标志条件的列表。
+# 返回值：
+# - 返回创建的条件数据列表。
 def create_conditions(feature_flag_id: int, conditions: List[schemas.FeatureFlagCondition]) -> List[Dict[str, Any]]:
     """
     Create new feature flag conditions and return their data.
@@ -307,7 +379,16 @@ def create_conditions(feature_flag_id: int, conditions: List[schemas.FeatureFlag
 
     return rows
 
-
+# 更新功能标志
+# 参数：
+# - project_id: 项目ID。
+# - feature_flag_id: 功能标志ID。
+# - feature_flag: 功能标志数据对象。
+# - user_id: 用户ID。
+# 返回值：
+# - 返回更新后的功能标志数据。
+# 注意事项：
+# - 如果功能标志未找到，将抛出HTTP 400错误。
 def update_feature_flag(project_id: int, feature_flag_id: int,
                         feature_flag: schemas.FeatureFlagSchema, user_id: int):
     """
@@ -357,7 +438,11 @@ def update_feature_flag(project_id: int, feature_flag_id: int,
 
     return {"data": helper.dict_to_camel_case(row)}
 
-
+# 获取功能标志的条件列表
+# 参数：
+# - feature_flag_id: 功能标志ID。
+# 返回值：
+# - 返回条件的列表。
 def get_conditions(feature_flag_id: int):
     """
     Get all conditions for a feature flag.
@@ -381,7 +466,12 @@ def get_conditions(feature_flag_id: int):
 
     return rows
 
-
+# 检查并更新功能标志的变体
+# 参数：
+# - feature_flag_id: 功能标志ID。
+# - variants: 功能标志变体的列表。
+# 返回值：
+# - 返回变体的更新后的数据。
 def check_variants(feature_flag_id: int, variants: List[schemas.FeatureFlagVariant]) -> Any:
     existing_ids = [ev.get("variant_id") for ev in get_variants(feature_flag_id)]
     to_be_deleted = []
@@ -409,7 +499,11 @@ def check_variants(feature_flag_id: int, variants: List[schemas.FeatureFlagVaria
 
     return get_variants(feature_flag_id)
 
-
+# 获取功能标志的变体列表
+# 参数：
+# - feature_flag_id: 功能标志ID。
+# 返回值：
+# - 返回变体的列表。
 def get_variants(feature_flag_id: int):
     sql = """
         SELECT
@@ -430,7 +524,12 @@ def get_variants(feature_flag_id: int):
 
     return rows
 
-
+# 创建新的功能标志变体
+# 参数：
+# - feature_flag_id: 功能标志ID。
+# - variants: 功能标志变体的列表。
+# 返回值：
+# - 返回创建的变体数据列表。
 def create_variants(feature_flag_id: int, variants: List[schemas.FeatureFlagVariant]) -> List[Dict[str, Any]]:
     """
     Create new feature flag variants and return their data.
@@ -462,7 +561,12 @@ def create_variants(feature_flag_id: int, variants: List[schemas.FeatureFlagVari
 
     return rows
 
-
+# 更新功能标志的变体
+# 参数：
+# - feature_flag_id: 功能标志ID。
+# - variants: 功能标志变体的列表。
+# 返回值：
+# - 返回更新后的变体数据。
 def update_variants(feature_flag_id: int, variants: List[schemas.FeatureFlagVariant]) -> Any:
     """
     Update existing feature flag variants and return their updated data.
@@ -489,7 +593,12 @@ def update_variants(feature_flag_id: int, variants: List[schemas.FeatureFlagVari
         query = cur.mogrify(sql, params)
         cur.execute(query)
 
-
+# 删除功能标志的变体
+# 参数：
+# - feature_flag_id: 功能标志ID。
+# - ids: 要删除的变体ID列表。
+# 返回值：
+# - 无返回值。
 def delete_variants(feature_flag_id: int, ids: List[int]) -> None:
     """
     Delete existing feature flag variants and return their data.
@@ -505,6 +614,12 @@ def delete_variants(feature_flag_id: int, ids: List[int]) -> None:
         cur.execute(query)
 
 
+# 检查并更新功能标志的条件
+# 参数：
+# - feature_flag_id: 功能标志ID。
+# - conditions: 功能标志条件的列表。
+# 返回值：
+# - 返回条件的更新后的数据。
 def check_conditions(feature_flag_id: int, conditions: List[schemas.FeatureFlagCondition]) -> Any:
     existing_ids = [ec.get("condition_id") for ec in get_conditions(feature_flag_id)]
     to_be_deleted = []
@@ -532,7 +647,12 @@ def check_conditions(feature_flag_id: int, conditions: List[schemas.FeatureFlagC
 
     return get_conditions(feature_flag_id)
 
-
+# 更新功能标志的条件
+# 参数：
+# - feature_flag_id: 功能标志ID。
+# - conditions: 功能标志条件的列表。
+# 返回值：
+# - 返回更新后的条件数据。
 def update_conditions(feature_flag_id: int, conditions: List[schemas.FeatureFlagCondition]) -> Any:
     """
     Update existing feature flag conditions and return their updated data.
@@ -559,7 +679,12 @@ def update_conditions(feature_flag_id: int, conditions: List[schemas.FeatureFlag
         query = cur.mogrify(sql, params)
         cur.execute(query)
 
-
+# 删除功能标志的条件
+# 参数：
+# - feature_flag_id: 功能标志ID。
+# - ids: 要删除的条件ID列表。
+# 返回值：
+# - 无返回值。
 def delete_conditions(feature_flag_id: int, ids: List[int]) -> None:
     """
     Delete feature flag conditions.
@@ -574,7 +699,12 @@ def delete_conditions(feature_flag_id: int, ids: List[int]) -> None:
         query = cur.mogrify(sql, {"feature_flag_id": feature_flag_id, "ids": tuple(ids)})
         cur.execute(query)
 
-
+# 删除功能标志
+# 参数：
+# - project_id: 项目ID。
+# - feature_flag_id: 功能标志ID。
+# 返回值：
+# - 返回成功状态。
 def delete_feature_flag(project_id: int, feature_flag_id: int):
     """
     Delete a feature flag.
@@ -591,3 +721,7 @@ def delete_feature_flag(project_id: int, feature_flag_id: int):
         cur.execute(query)
 
     return {"state": "success"}
+
+# 注意事项：
+# 在操作数据库时，特别是更新或删除操作，需要谨慎操作，确保提供的feature_flag_id和project_id是正确的，以避免意外的数据修改或删除。
+# 在涉及多变体功能标志时，确保变体的分配比例之和不超过100%。

@@ -1,3 +1,5 @@
+# 这段代码实现了一系列函数，主要用于处理 JavaScript 的 Sourcemaps 文件。这些函数的功能包括生成预签名的共享和上传 URL、格式化和验证堆栈帧、
+# 获取和处理 Sourcemaps 文件以及填充丢失的上下文信息。它们共同用于解析错误日志中的压缩 JavaScript 代码，并恢复出原始的源代码位置，帮助开发者定位错误的源头。
 from urllib.parse import urlparse
 
 import requests
@@ -6,7 +8,13 @@ from decouple import config
 from chalicelib.core import sourcemaps_parser
 from chalicelib.utils.storage import StorageClient, generators
 
-
+# 功能描述:
+# 为指定的 URL 生成预签名的共享链接，供用户下载或查看。
+# 参数:
+# project_id: 项目ID，用于区分不同项目的文件。
+# urls: 一个包含多个URL的列表，这些URL代表需要生成预签名链接的文件。
+# 返回值:
+# 返回一个列表，列表中的每个元素都是生成的预签名URL。
 def presign_share_urls(project_id, urls):
     results = []
     for u in urls:
@@ -15,7 +23,13 @@ def presign_share_urls(project_id, urls):
                                                                check_exists=True))
     return results
 
-
+# 功能描述:
+# 为指定的 URL 生成预签名的上传链接，使得客户端可以将文件上传到指定的位置。
+# 参数:
+# project_id: 项目ID，用于区分不同项目的文件。
+# urls: 一个包含多个URL的列表，这些URL代表需要生成预签名上传链接的文件。
+# 返回值:
+# 返回一个列表，列表中的每个元素都是生成的预签名上传URL。
 def presign_upload_urls(project_id, urls):
     results = []
     for u in urls:
@@ -24,7 +38,12 @@ def presign_upload_urls(project_id, urls):
                                                               key=generators.generate_file_key_from_url(project_id, u)))
     return results
 
-
+# 功能描述:
+# 将旧格式的堆栈帧信息转换为新的标准化格式。
+# 参数:
+# f: 一个字典，包含旧格式的堆栈帧信息。
+# 返回值:
+# 返回格式化后的堆栈帧字典。
 def __format_frame_old(f):
     if f.get("context") is None:
         f["context"] = []
@@ -38,13 +57,23 @@ def __format_frame_old(f):
     f["function"] = f.pop("func")
     return f
 
-
+# 功能描述:
+# 检查堆栈帧是否包含有效的关键信息（行号、列号、文件名）。
+# 参数:
+# f: 一个字典，表示一个堆栈帧。
+# 返回值:
+# 如果堆栈帧有效，返回 True，否则返回 False。
 def __frame_is_valid(f):
     return "columnNumber" in f and \
            "lineNumber" in f and \
            "fileName" in f
 
-
+# 功能描述:
+# 将新的堆栈帧信息格式化为标准化格式，适用于新的输入数据结构。
+# 参数:
+# f: 一个字典，包含堆栈帧的信息。
+# 返回值:
+# 返回格式化后的堆栈帧字典。
 def __format_frame(f):
     f["context"] = []  # no context by default
     if "source" in f:
@@ -57,7 +86,13 @@ def __format_frame(f):
     f["function"] = f.pop("functionName") if "functionName" in f else None
     return f
 
-
+# 功能描述:
+# 将整个 payload 中的所有堆栈帧信息进行格式化，并支持只格式化第一个帧。
+# 参数:
+# p: 要格式化的 payload，可能是一个堆栈帧列表或包含堆栈帧的字典。
+# truncate_to_first: 布尔值，指示是否只格式化第一个堆栈帧。
+# 返回值:
+# 返回格式化后的堆栈帧列表。
 def format_payload(p, truncate_to_first=False):
     if type(p) is list:
         return [__format_frame(f) for f in (p[:1] if truncate_to_first else p) if __frame_is_valid(f)]
@@ -76,7 +111,12 @@ def url_exists(url):
         print(e)
         return False
 
-
+# 功能描述:
+# 检查给定的 URL 是否存在。
+# 参数:
+# url: 要检查的 URL。
+# 返回值:
+# 如果 URL 存在且有效，返回 True，否则返回 False。
 def get_traces_group(project_id, payload):
     frames = format_payload(payload)
 
@@ -134,7 +174,12 @@ def get_traces_group(project_id, payload):
             results[res_index] = r
     return fetch_missed_contexts(results), all_exists
 
-
+# 功能描述:
+# 生成 JavaScript 文件的缓存路径，用于从存储中检索文件。
+# 参数:
+# fullURL: JavaScript 文件的完整 URL。
+# 返回值:
+# 返回生成的缓存路径。
 def get_js_cache_path(fullURL):
     p = urlparse(fullURL)
     return p.scheme + '/' + p.netloc + p.path  # TODO (Also in go assets library): What if URL with query? (like versions)
@@ -142,7 +187,12 @@ def get_js_cache_path(fullURL):
 
 MAX_COLUMN_OFFSET = 60
 
-
+# 功能描述:
+# 为缺失上下文信息的堆栈帧填充源代码上下文，从存储中检索对应的文件，并根据行号和列号提取源代码的相关部分。
+# 参数:
+# frames: 一个包含堆栈帧信息的列表。
+# 返回值:
+# 返回填充了上下文信息的堆栈帧列表。
 def fetch_missed_contexts(frames):
     source_cache = {}
     for i in range(len(frames)):

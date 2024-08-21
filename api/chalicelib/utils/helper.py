@@ -285,10 +285,16 @@ def get_issue_title(issue_type):
     }.get(issue_type, issue_type)
 
 
+# 计算两个值之间的百分比变化，表示新值相对于旧值的增长或减少幅度。
+# print(__progress(50, 100))  # Output: -50.0  (新值为旧值的一半，下降50%)
+# print(__progress(100, 50))  # Output: 100.0  (新值为旧值的两倍，上升100%)
 def __progress(old_val, new_val):
+    # (old_val - new_val) / new_val * 100 是标准的百分比变化公式，计算结果是新值相对于旧值的变化比例。
+    # 三元运算符
     return ((old_val - new_val) / new_val) * 100 if new_val > 0 else 0 if old_val == 0 else 100
 
 
+# 限制给定数值的小数点后的位数，使其符合指定的精度要求。
 def __decimal_limit(value, limit):
     factor = pow(10, limit)
     value = math.floor(value * factor)

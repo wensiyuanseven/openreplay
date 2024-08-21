@@ -1,13 +1,15 @@
-# 这个文件的主要目的是通过定时任务生成各个项目的每周报告，报告的内容包括项目在过去一周的问题数量及其演变情况，并通过电子邮件发送给相关的用户。
-# 代码通过一系列 SQL 查询从数据库中提取相关数据，处理和格式化这些数据后，最终将其发送给用户。
+# 这段代码的核心是自动化生成每周项目报告，并通过邮件发送给相关用户。它通过多个 SQL 查询从数据库中提取统计数据，并对这些数据进行处理和格式化，以便在报告中展示
 from chalicelib.utils import pg_client, helper, email_helper, smtp
 from chalicelib.utils.TimeUTC import TimeUTC
 from chalicelib.utils.helper import get_issue_title
 
+# 这是一个常量，表示在生成图表或统计数据时，柱状图的最小值。即使某些天的错误数量为零，图表中的柱状图也不会低于这个值。
 LOWEST_BAR_VALUE = 3
 
 
+# 从数据库中获取指定用户的每周报告配置
 def get_config(user_id):
+    # 使用 pg_client.PostgresClient() 创建一个与数据库的连接，并通过 cur（游标）进行查询操作
     with pg_client.PostgresClient() as cur:
         cur.execute(
             cur.mogrify(
@@ -23,6 +25,7 @@ def get_config(user_id):
     return helper.dict_to_camel_case(result)
 
 
+# 更新指定用户的每周报告配置。
 def edit_config(user_id, weekly_report):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -40,12 +43,16 @@ def edit_config(user_id, weekly_report):
     return helper.dict_to_camel_case(result)
 
 
+# 生成每周报告并通过电子邮件发送给用户。这个函数是任务调度程序（cron job）的核心部分，通常定期运行，例如每周一次。
 def cron():
+    # 使用 smtp.has_smtp() 检查是否配置了 SMTP（用于发送邮件）。如果未配置，则打印错误消息并退出函数。
     if not smtp.has_smtp():
-        print("!!! No SMTP configuration found, ignoring weekly report")
+        print("!!! 未找到 SMTP 配置，忽略每周报告")
         return
+    # TimeUTC.now() 获取当前时间戳。
     _now = TimeUTC.now()
     with pg_client.PostgresClient(unlimited_query=True) as cur:
+        # 使用 TimeUTC.midnight() 计算一些特定的时间点，比如明天、三天前、一周前、两周前、五周前的午夜时间。
         params = {
             "tomorrow": TimeUTC.midnight(delta_days=1),
             "3_days_ago": TimeUTC.midnight(delta_days=-3),
@@ -53,6 +60,12 @@ def cron():
             "2_week_ago": TimeUTC.midnight(delta_days=-14),
             "5_week_ago": TimeUTC.midnight(delta_days=-35),
         }
+        # 构建 SQL 查询语句，获取与项目相关的统计数据，包括错误数量、用户电子邮件、时间范围等
+        # 对每个项目的数据进行处理，如计算错误数量的变化百分比、生成每天的错误数据图表等。
+        # 生成适合发送电子邮件的数据结构。
+        # 代码中的多段 SQL 查询用于从数据库中获取项目的统计数据，如错误数量、用户电子邮件、项目名称等。
+        # 这些查询大部分使用了 PostgreSQL 的时间函数（如 DATE_TRUNC 和 INTERVAL）来精确获取指定时间范围内的数据。
+        # 每个查询返回的数据进一步处理，生成适合用于图表展示的值或用于电子邮件发送的报告内容。
         cur.execute(
             cur.mogrify(
                 """\
@@ -107,7 +120,7 @@ def cron():
         )
         projects_data = cur.fetchall()
         _now2 = TimeUTC.now()
-        print(f">> Weekly report query: {_now2 - _now} ms")
+        print(f">> 周报查询: {_now2 - _now} ms")
         _now = _now2
         emails_to_send = []
         for p in projects_data:
@@ -142,7 +155,7 @@ def cron():
             )
             days_partition = cur.fetchall()
             _now2 = TimeUTC.now()
-            print(f">> Weekly report s-query-1: {_now2 - _now} ms project_id: {p['project_id']}")
+            print(f">> 每周报告 s-query-1: {_now2 - _now} ms project_id: {p['project_id']}")
             _now = _now2
             max_days_partition = max(x["issues_count"] for x in days_partition)
             for d in days_partition:
@@ -302,4 +315,5 @@ def cron():
             )
         print(f">>> Sending weekly report to {len(emails_to_send)} email-group")
         for e in emails_to_send:
+            # 发送格式化好的每周报告邮件。
             email_helper.weekly_report2(recipients=e["email"], data=e["data"])

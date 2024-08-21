@@ -1,3 +1,5 @@
+# 这个代码片段实现了对错误（errors）数据的管理和查询功能。主要功能包括获取单个错误或错误家族的详细信息、处理错误的堆栈跟踪、搜索错误、获取与错误相关的会话数据，以及更改错误的状态。
+# 通过这些功能，系统可以有效地管理和分析项目中发生的错误，并为用户提供错误的详细视图。
 import json
 
 import schemas
@@ -7,7 +9,12 @@ from chalicelib.utils import pg_client, helper
 from chalicelib.utils.TimeUTC import TimeUTC
 from chalicelib.utils.metrics_helper import __get_step_size
 
-
+# 获取指定错误的详细信息。
+# 参数：
+# - error_id: 错误的ID。
+# - family: 如果为True，返回整个错误家族的信息。
+# 返回值：
+# - 返回错误的详细信息字典。
 def get(error_id, family=False):
     if family:
         return get_batch([error_id])
@@ -23,7 +30,11 @@ def get(error_id, family=False):
             result["stacktrace_parsed_at"] = TimeUTC.datetime_to_timestamp(result["stacktrace_parsed_at"])
         return helper.dict_to_camel_case(result)
 
-
+# 获取一组错误的详细信息，包括它们的家族。
+# 参数：
+# - error_ids: 错误ID列表。
+# 返回值：
+# - 返回错误详细信息的列表。
 def get_batch(error_ids):
     if len(error_ids) == 0:
         return []
@@ -48,7 +59,12 @@ def get_batch(error_ids):
             e["stacktrace_parsed_at"] = TimeUTC.datetime_to_timestamp(e["stacktrace_parsed_at"])
         return helper.list_to_camel_case(errors)
 
-
+# 扁平化并排序给定数据中的版本和计数信息。
+# 参数：
+# - data: 包含分区信息的列表。
+# - merge_nested: 如果为True，将嵌套的版本信息合并。
+# 返回值：
+# - 返回排序后的列表
 def __flatten_sort_key_count_version(data, merge_nested=False):
     if data is None:
         return []
@@ -67,7 +83,11 @@ def __flatten_sort_key_count_version(data, merge_nested=False):
             } for o in data
         ]
 
-
+# 处理错误详情中的标签数据。
+# 参数：
+# - row: 包含原始数据的字典。
+# 返回值：
+# - 返回包含处理过的标签信息的列表。
 def __process_tags(row):
     return [
         {"name": "browser", "partitions": __flatten_sort_key_count_version(data=row.get("browsers_partition"))},
@@ -82,8 +102,17 @@ def __process_tags(row):
         {"name": "country", "partitions": row.pop("country_partition")}
     ]
 
-
+# 获取指定错误的详细信息和相关统计数据。
+# 参数：
+# - project_id: 项目ID。
+# - error_id: 错误的ID。
+# - user_id: 用户ID。
+# - data: 包含其他可选参数的字典。
+# 返回值：
+# - 返回包含错误详细信息和统计数据的字典
 def get_details(project_id, error_id, user_id, **data):
+    # 代码内容与逻辑略复杂，此处略去部分细节说明。
+    # 大致作用是通过一系列SQL查询，获取错误的详细信息及其相关的用户、会话和时间分布数据。
     pg_sub_query24 = __get_basic_constraints(time_constraint=False, chart=True, step_size_name="step_size24")
     pg_sub_query24.append("error_id = %(error_id)s")
     pg_sub_query30_session = __get_basic_constraints(time_constraint=True, chart=False,
@@ -294,7 +323,14 @@ def get_details(project_id, error_id, user_id, **data):
         row["viewed"] = False
     return {"data": helper.dict_to_camel_case(row)}
 
-
+# 获取指定错误的时间序列数据和统计信息。
+# 参数：
+# - project_id: 项目ID。
+# - error_id: 错误的ID。
+# - user_id: 用户ID。
+# - data: 包含其他可选参数的字典。
+# 返回值：
+# - 返回包含错误时间序列数据和统计信息的字典。
 def get_details_chart(project_id, error_id, user_id, **data):
     pg_sub_query = __get_basic_constraints()
     pg_sub_query.append("error_id = %(error_id)s")
@@ -406,7 +442,17 @@ def get_details_chart(project_id, error_id, user_id, **data):
     row["tags"] = __process_tags(row)
     return {"data": helper.dict_to_camel_case(row)}
 
-
+# 获取用于查询的基本约束条件。
+# 参数：
+# - platform: 平台类型。
+# - time_constraint: 是否包含时间约束。
+# - startTime_arg_name: 开始时间参数的名称。
+# - endTime_arg_name: 结束时间参数的名称。
+# - chart: 是否为图表查询。
+# - step_size_name: 时间步长参数的名称。
+# - project_key: 项目键名。
+# 返回值：
+# - 返回包含基本约束条件的列表。
 def __get_basic_constraints(platform=None, time_constraint=True, startTime_arg_name="startDate",
                             endTime_arg_name="endDate", chart=False, step_size_name="step_size",
                             project_key="project_id"):
@@ -426,7 +472,11 @@ def __get_basic_constraints(platform=None, time_constraint=True, startTime_arg_n
         ch_sub_query.append("user_device_type = 'desktop'")
     return ch_sub_query
 
-
+# 根据键值获取排序方式。
+# 参数：
+# - key: 排序键。
+# 返回值：
+# - 返回对应的排序字段。
 def __get_sort_key(key):
     return {
         schemas.ErrorSort.occurrence: "max_datetime",
@@ -434,7 +484,13 @@ def __get_sort_key(key):
         schemas.ErrorSort.sessions_count: "sessions"
     }.get(key, 'max_datetime')
 
-
+# 搜索符合条件的错误。
+# 参数：
+# - data: 包含搜索条件的schemas.SearchErrorsSchema对象。
+# - project_id: 项目ID。
+# - user_id: 用户ID。
+# 返回值：
+# - 返回符合条件的错误列表和总数。
 def search(data: schemas.SearchErrorsSchema, project_id, user_id):
     empty_response = {
         'total': 0,
@@ -586,7 +642,10 @@ def search(data: schemas.SearchErrorsSchema, project_id, user_id):
         'errors': helper.list_to_camel_case(rows)
     }
 
-
+# 保存指定错误的堆栈跟踪信息。
+# 参数：
+# - error_id: 错误的ID。
+# - data: 堆栈跟踪数据。
 def __save_stacktrace(error_id, data):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(
@@ -596,7 +655,12 @@ def __save_stacktrace(error_id, data):
             {"error_id": error_id, "data": json.dumps(data)})
         cur.execute(query=query)
 
-
+# 获取指定错误的堆栈跟踪信息。
+# 参数：
+# - project_id: 项目ID。
+# - error_id: 错误的ID。
+# 返回值：
+# - 返回包含堆栈跟踪信息的字典。
 def get_trace(project_id, error_id):
     error = get(error_id=error_id, family=False)
     if error is None:
@@ -616,7 +680,15 @@ def get_trace(project_id, error_id):
             "trace": trace,
             "preparsed": False}
 
-
+# 获取与指定错误相关的会话数据。
+# 参数：
+# - start_date: 开始日期。
+# - end_date: 结束日期。
+# - project_id: 项目ID。
+# - user_id: 用户ID。
+# - error_id: 错误的ID。
+# 返回值：
+# - 返回与错误相关的会话数据列表和总数。
 def get_sessions(start_date, end_date, project_id, user_id, error_id):
     extra_constraints = ["s.project_id = %(project_id)s",
                          "s.start_ts >= %(startDate)s",
@@ -682,7 +754,14 @@ ACTION_STATE = {
     "ignore": 'ignored'
 }
 
-
+# 更改指定错误的状态（解决、忽略等）。
+# 参数：
+# - project_id: 项目ID。
+# - user_id: 用户ID。
+# - error_id: 错误的ID。
+# - action: 要执行的操作（例如solve、ignore等）。
+# 返回值：
+# - 返回更改后的错误状态
 def change_state(project_id, user_id, error_id, action):
     errors = get(error_id, family=True)
     print(len(errors))

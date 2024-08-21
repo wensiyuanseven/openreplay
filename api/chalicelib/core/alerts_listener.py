@@ -1,6 +1,7 @@
 from chalicelib.utils import pg_client, helper
 
 
+# 用于从 PostgreSQL 数据库中查询所有活动的告警信息，并返回结果
 def get_all_alerts():
     with pg_client.PostgresClient(long_query=True) as cur:
         query = """SELECT -1 AS tenant_id,

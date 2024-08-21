@@ -1,3 +1,4 @@
+# 该脚本主要用于管理租户系统中的用户信息和认证功能。通过这些功能，开发者可以实现用户的创建、更新、删除、角色管理、身份验证以及邀请成员等操作。此外，还包括对用户设置和模块状态的管理。
 import json
 import secrets
 
@@ -12,11 +13,23 @@ from chalicelib.utils import helper
 from chalicelib.utils import pg_client
 from chalicelib.utils.TimeUTC import TimeUTC
 
-
+# 功能描述:
+# 生成一个用于邀请用户的安全 URL 令牌。
+# 返回值:
+# 返回一个长度为 64 的安全随机 URL 令牌。
 def __generate_invitation_token():
     return secrets.token_urlsafe(64)
 
-
+# 功能描述:
+# 创建一个新的系统用户，并为其生成邀请令牌。
+# 参数:
+# email: 新用户的电子邮件地址。
+# invitation_token: 邀请令牌，用于用户的首次登录。
+# admin: 是否为管理员角色。
+# name: 新用户的名字。
+# owner: 是否为系统所有者角色，默认为 False。
+# 返回值:
+# 返回新创建用户的详细信息，包括生成的邀请令牌。
 def create_new_member(email, invitation_token, admin, name, owner=False):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""\
@@ -47,7 +60,18 @@ def create_new_member(email, invitation_token, admin, name, owner=False):
             row["createdAt"] = TimeUTC.datetime_to_timestamp(row["createdAt"])
         return row
 
-
+# 函数 restore_member
+# 功能描述:
+# 恢复一个已删除的用户，并为其重新生成邀请令牌。
+# 参数:
+# user_id: 用户的唯一标识符。
+# email: 用户的电子邮件地址。
+# invitation_token: 邀请令牌，用于用户的首次登录。
+# admin: 是否为管理员角色。
+# name: 用户的名字。
+# owner: 是否为系统所有者角色，默认为 False。
+# 返回值:
+# 返回恢复后的用户详细信息，包括生成的邀请令牌。
 def restore_member(user_id, email, invitation_token, admin, name, owner=False):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""\
@@ -84,7 +108,12 @@ def restore_member(user_id, email, invitation_token, admin, name, owner=False):
         result["created_at"] = TimeUTC.datetime_to_timestamp(result["created_at"])
     return helper.dict_to_camel_case(result)
 
-
+# 功能描述:
+# 为现有用户生成一个新的邀请令牌。
+# 参数:
+# user_id: 用户的唯一标识符。
+# 返回值:
+# 返回包含邀请令牌的邀请链接。
 def generate_new_invitation(user_id):
     invitation_token = __generate_invitation_token()
     with pg_client.PostgresClient() as cur:
@@ -102,7 +131,14 @@ def generate_new_invitation(user_id):
         )
         return __get_invitation_link(cur.fetchone().pop("invitation_token"))
 
-
+# 功能描述:
+# 重置用户并生成新的邀请链接。
+# 参数:
+# tenant_id: 租户的唯一标识符。
+# editor_id: 执行重置操作的用户的唯一标识符。
+# user_id_to_update: 需要重置的用户的唯一标识符。
+# 返回值:
+# 返回新的邀请链接。
 def reset_member(tenant_id, editor_id, user_id_to_update):
     admin = get(tenant_id=tenant_id, user_id=editor_id)
     if not admin["admin"] and not admin["superAdmin"]:
@@ -112,7 +148,15 @@ def reset_member(tenant_id, editor_id, user_id_to_update):
         return {"errors": ["user not found"]}
     return {"data": {"invitationLink": generate_new_invitation(user_id_to_update)}}
 
-
+# 功能描述:
+# 更新用户的信息，如姓名、角色等。
+# 参数:
+# tenant_id: 租户的唯一标识符。
+# user_id: 用户的唯一标识符。
+# changes: 需要更新的字段及其新值。
+# output: 是否返回更新后的用户信息，默认为 True。
+# 返回值:
+# 返回更新后的用户详细信息。
 def update(tenant_id, user_id, changes, output=True):
     AUTH_KEYS = ["password", "invitationToken", "invitedAt", "changePwdExpireAt", "changePwdToken"]
     if len(changes.keys()) == 0:
@@ -149,7 +193,15 @@ def update(tenant_id, user_id, changes, output=True):
         return None
     return get(user_id=user_id, tenant_id=tenant_id)
 
-
+# 功能描述:
+# 创建一个新的成员，并向其发送邀请链接。
+# 参数:
+# tenant_id: 租户的唯一标识符。
+# user_id: 执行创建操作的用户的唯一标识符。
+# data: 包含新成员详细信息的请求数据。
+# background_tasks: 用于添加后台任务的对象。
+# 返回值:
+# 返回新创建成员的详细信息。
 def create_member(tenant_id, user_id, data: schemas.CreateMemberSchema, background_tasks: BackgroundTasks):
     admin = get(tenant_id=tenant_id, user_id=user_id)
     if not admin["admin"] and not admin["superAdmin"]:
@@ -179,11 +231,22 @@ def create_member(tenant_id, user_id, data: schemas.CreateMemberSchema, backgrou
     })
     return {"data": new_member}
 
-
+# 功能描述:
+# 根据邀请令牌生成完整的邀请链接。
+# 参数:
+# invitation_token (str): 邀请令牌。
+# 返回值:
+# 返回完整的邀请链接。
 def __get_invitation_link(invitation_token):
     return config("SITE_URL") + config("invitation_link") % invitation_token
 
-
+# 功能描述:
+# 允许用户更改密码，并生成一个密码修改的临时令牌。
+# 参数:
+# user_id: 用户的唯一标识符。
+# delta_min: 密码更改链接的有效时长，默认为 10 分钟。
+# 返回值:
+# 返回密码修改的临时令牌。
 def allow_password_change(user_id, delta_min=10):
     pass_token = secrets.token_urlsafe(8)
     with pg_client.PostgresClient() as cur:
@@ -197,7 +260,13 @@ def allow_password_change(user_id, delta_min=10):
         )
     return pass_token
 
-
+# 功能描述:
+# 根据用户 ID 获取用户的详细信息。
+# 参数:
+# user_id: 用户的唯一标识符。
+# tenant_id: 租户的唯一标识符。
+# 返回值:
+# 返回用户的详细信息。
 def get(user_id, tenant_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -222,7 +291,15 @@ def get(user_id, tenant_id):
         r = cur.fetchone()
         return helper.dict_to_camel_case(r)
 
+# 功能描述:
+# 为指定的租户生成一个新的 API 密钥。
 
+# 参数:
+
+# tenant_id: 租户的唯一标识符。
+# 返回值:
+
+# 返回一个字典格式的租户信息，包括新生成的 API 密钥。
 def generate_new_api_key(user_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -253,7 +330,14 @@ def __get_account_info(tenant_id, user_id):
         r = cur.fetchone()
     return helper.dict_to_camel_case(r)
 
-
+# 功能描述:
+# 更新用户账户信息，如姓名、租户名等。
+# 参数:
+# user_id: 用户的唯一标识符。
+# tenant_id: 租户的唯一标识符。
+# changes: 需要更新的字段及其新值。
+# 返回值:
+# 返回更新后的账户信息。
 def edit_account(user_id, tenant_id, changes: schemas.EditAccountSchema):
     if changes.opt_out is not None or changes.tenantName is not None and len(changes.tenantName) > 0:
         user = get(user_id=user_id, tenant_id=tenant_id)
@@ -274,7 +358,15 @@ def edit_account(user_id, tenant_id, changes: schemas.EditAccountSchema):
 
     return {"data": __get_account_info(tenant_id=tenant_id, user_id=user_id)}
 
-
+# 功能描述:
+# 更新成员的信息，如姓名、角色等。
+# 参数:
+# user_id_to_update (int): 需要更新的用户的唯一标识符。
+# tenant_id (int): 租户的唯一标识符。
+# changes (schemas.EditMemberSchema): 需要更新的字段及其新值。
+# editor_id (int): 执行更新操作的用户的唯一标识符。
+# 返回值:
+# 返回更新后的成员详细信息。
 def edit_member(user_id_to_update, tenant_id, changes: schemas.EditMemberSchema, editor_id):
     user = get_member(user_id=user_id_to_update, tenant_id=tenant_id)
     _changes = {}
@@ -301,7 +393,12 @@ def edit_member(user_id_to_update, tenant_id, changes: schemas.EditMemberSchema,
         return {"data": get_member(user_id=user_id_to_update, tenant_id=tenant_id)}
     return {"data": user}
 
-
+# 功能描述:
+# 根据电子邮件地址获取用户的详细信息。
+# 参数:
+# email: 用户的电子邮件地址。
+# 返回值:
+# 返回用户的详细信息。
 def get_by_email_only(email):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -325,7 +422,14 @@ def get_by_email_only(email):
         r = cur.fetchone()
     return helper.dict_to_camel_case(r)
 
-
+# 功能描述:
+# 删除特定成员。
+# 参数:
+# user_id (int): 当前执行删除操作的用户的唯一标识符。
+# tenant_id (int): 租户的唯一标识符。
+# id_to_delete (int): 需要删除的用户的唯一标识符。
+# 返回值:
+# 返回删除后的所有成员信息。
 def get_member(tenant_id, user_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -358,7 +462,12 @@ def get_member(tenant_id, user_id):
 
     return u
 
-
+# 功能描述:
+# 获取所有成员的详细信息。
+# 参数:
+# tenant_id (int): 租户的唯一标识符。
+# 返回值:
+# 返回所有成员的详细信息。
 def get_members(tenant_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -392,7 +501,14 @@ def get_members(tenant_id):
 
     return []
 
-
+# 功能描述:
+# 删除指定的成员用户，除非该成员是超级管理员或当前用户自己。
+# 参数:
+# user_id (int): 当前操作用户的唯一标识符。
+# tenant_id (int): 租户的唯一标识符。
+# id_to_delete (int): 需要删除的用户的唯一标识符。
+# 返回值:
+# 如果成功删除用户，返回删除后的所有成员列表。否则返回错误信息。
 def delete_member(user_id, tenant_id, id_to_delete):
     if user_id == id_to_delete:
         return {"errors": ["unauthorized, cannot delete self"]}
@@ -425,7 +541,16 @@ def delete_member(user_id, tenant_id, id_to_delete):
                         {"user_id": id_to_delete}))
     return {"data": get_members(tenant_id=tenant_id)}
 
-
+# 功能描述:
+# 更改用户密码。
+# 参数:
+# tenant_id: 租户的唯一标识符。
+# user_id: 用户的唯一标识符。
+# email: 用户的电子邮件地址。
+# old_password: 旧密码。
+# new_password: 新密码。
+# 返回值:
+# 返回包含 JWT 的字典。
 def change_password(tenant_id, user_id, email, old_password, new_password):
     item = get(tenant_id=tenant_id, user_id=user_id)
     if item is None:
@@ -443,7 +568,13 @@ def change_password(tenant_id, user_id, email, old_password, new_password):
         'jwt': r.pop('jwt')
     }
 
-
+# 功能描述:
+# 设置用户的密码，用于接受邀请时，完成密码设置和账户激活。
+# 参数:
+# user_id (int): 用户的唯一标识符。
+# new_password (str): 新密码。
+# 返回值:
+# 返回包含 JWT 令牌和用户、客户端数据的字典。
 def set_password_invitation(user_id, new_password):
     changes = {"password": new_password}
     user = update(tenant_id=-1, user_id=user_id, changes=changes)
@@ -468,7 +599,12 @@ def set_password_invitation(user_id, new_password):
         }
     }
 
-
+# 功能描述:
+# 检查指定电子邮件地址是否已经存在于系统中。
+# 参数:
+# email (str): 要检查的电子邮件地址。
+# 返回值:
+# 如果电子邮件存在，返回 True；否则返回 False。
 def email_exists(email):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -485,6 +621,12 @@ def email_exists(email):
         r = cur.fetchone()
     return r["count"] > 0
 
+# 功能描述:
+# 获取已删除的用户的详细信息。
+# 参数:
+# email (str): 用户的电子邮件地址。
+# 返回值:
+# 返回包含已删除用户详细信息的字典，如果没有找到，则返回 None。
 
 def get_deleted_user_by_email(email):
     with pg_client.PostgresClient() as cur:
@@ -502,7 +644,13 @@ def get_deleted_user_by_email(email):
         r = cur.fetchone()
     return helper.dict_to_camel_case(r)
 
-
+# 功能描述:
+# 根据邀请令牌获取用户的详细信息。还可以根据可选的密码令牌获取信息。
+# 参数:
+# token (str): 邀请令牌。
+# pass_token (str, optional): 用于密码更改的临时令牌。
+# 返回值:
+# 返回包含用户详细信息的字典。
 def get_by_invitation_token(token, pass_token=None):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -521,7 +669,13 @@ def get_by_invitation_token(token, pass_token=None):
         r = cur.fetchone()
     return helper.dict_to_camel_case(r)
 
-
+# 功能描述:
+# 检查用户的身份认证信息是否存在且有效。
+# 参数:
+# user_id (int): 用户的唯一标识符。
+# jwt_iat (int): JSON Web Token 的签发时间戳。
+# 返回值:
+# 如果认证信息有效，返回 True；否则返回 False。
 def auth_exists(user_id, jwt_iat):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -537,7 +691,13 @@ def auth_exists(user_id, jwt_iat):
         and r.get("jwt_iat") is not None \
         and abs(jwt_iat - r["jwt_iat"]) <= 1
 
-
+# 功能描述:
+# 检查用户的刷新令牌是否存在且有效。
+# 参数:
+# user_id (int): 用户的唯一标识符。
+# jwt_jti (str): JSON Web Token 的唯一标识符。
+# 返回值:
+# 如果刷新令牌有效，返回 True；否则返回 False。
 def refresh_auth_exists(user_id, jwt_jti=None):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -552,7 +712,12 @@ def refresh_auth_exists(user_id, jwt_jti=None):
         r = cur.fetchone()
     return r is not None
 
-
+# 功能描述:
+# 更新用户的 JWT 签发时间和刷新令牌的 JTI 标识符。
+# 参数:
+# user_id (int): 用户的唯一标识符。
+# 返回值:
+# 返回新的 JWT 签发时间、刷新令牌的 JTI 标识符以及刷新令牌的签发时间。
 def change_jwt_iat_jti(user_id):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""UPDATE public.users
@@ -568,7 +733,12 @@ def change_jwt_iat_jti(user_id):
         row = cur.fetchone()
         return row.get("jwt_iat"), row.get("jwt_refresh_jti"), row.get("jwt_refresh_iat")
 
-
+# 功能描述:
+# 更新用户的 JWT 签发时间，并递增刷新令牌的 JTI 标识符。
+# 参数:
+# user_id (int): 用户的唯一标识符。
+# 返回值:
+# 返回新的 JWT 签发时间、刷新令牌的 JTI 标识符以及刷新令牌的签发时间。
 def refresh_jwt_iat_jti(user_id):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""UPDATE public.users
@@ -583,7 +753,14 @@ def refresh_jwt_iat_jti(user_id):
         row = cur.fetchone()
         return row.get("jwt_iat"), row.get("jwt_refresh_jti"), row.get("jwt_refresh_iat")
 
-
+# 功能描述:
+# 验证用户的电子邮件和密码，返回用户的身份认证信息及 JWT 令牌。
+# 参数:
+# email (str): 用户的电子邮件地址。
+# password (str): 用户的密码。
+# for_change_password (bool, optional): 是否用于密码更改，默认为 False。
+# 返回值:
+# 如果认证成功，返回包含 JWT 令牌和用户信息的字典。如果认证失败，返回 None。
 def authenticate(email, password, for_change_password=False) -> dict | bool | None:
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(
@@ -622,7 +799,12 @@ def authenticate(email, password, for_change_password=False) -> dict | bool | No
         }
     return None
 
-
+# 功能描述:
+# 注销用户，将用户的 JWT 信息清空。
+# 参数:
+# user_id (int): 用户的唯一标识符。
+# 返回值:
+# 无返回值。
 def logout(user_id: int):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(
@@ -632,7 +814,13 @@ def logout(user_id: int):
             {"user_id": user_id})
         cur.execute(query)
 
-
+# 功能描述:
+# 刷新用户的 JWT 令牌和刷新令牌。
+# 参数:
+# user_id (int): 用户的唯一标识符。
+# tenant_id (int, optional): 租户的唯一标识符，默认为 -1。
+# 返回值:
+# 返回包含新 JWT 令牌和刷新令牌的字典。
 def refresh(user_id: int, tenant_id: int = -1) -> dict:
     jwt_iat, jwt_r_jti, jwt_r_iat = refresh_jwt_iat_jti(user_id=user_id)
     return {
@@ -644,7 +832,13 @@ def refresh(user_id: int, tenant_id: int = -1) -> dict:
         "refreshTokenMaxAge": config("JWT_REFRESH_EXPIRATION", cast=int) - (jwt_iat - jwt_r_iat)
     }
 
-
+# 功能描述:
+# 获取用户的角色信息。
+# 参数:
+# tenant_id (int): 租户的唯一标识符。
+# user_id (int): 用户的唯一标识符。
+# 返回值:
+# 返回包含用户角色信息的字典。
 def get_user_role(tenant_id, user_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -666,7 +860,12 @@ def get_user_role(tenant_id, user_id):
         )
         return helper.dict_to_camel_case(cur.fetchone())
 
-
+# 功能描述:
+# 获取用户的设置信息。
+# 参数:
+# user_id (int): 用户的唯一标识符。
+# 返回值:
+# 返回包含用户设置的字典。
 def get_user_settings(user_id):
     #     read user settings from users.settings:jsonb column
     with pg_client.PostgresClient() as cur:
@@ -682,7 +881,13 @@ def get_user_settings(user_id):
         )
         return helper.dict_to_camel_case(cur.fetchone())
 
-
+# 功能描述:
+# 更新用户的模块设置，如激活或停用某些模块。
+# 参数:
+# user_id (int): 用户的唯一标识符。
+# data (schemas.ModuleStatus): 包含模块状态信息的数据结构。
+# 返回值:
+# 返回更新后的用户设置。
 def update_user_module(user_id, data: schemas.ModuleStatus):
     # example data = {"settings": {"modules": ['ASSIST', 'METADATA']}
     #     update user settings from users.settings:jsonb column only update settings.modules
@@ -704,7 +909,13 @@ def update_user_module(user_id, data: schemas.ModuleStatus):
 
     return update_user_settings(user_id, settings)
 
-
+# 功能描述:
+# 更新用户的设置信息。
+# 参数:
+# user_id (int): 用户的唯一标识符。
+# settings (dict): 要更新的设置信息。
+# 返回值:
+# 返回更新后的设置信息。
 def update_user_settings(user_id, settings):
     #     update user settings from users.settings:jsonb column
     with pg_client.PostgresClient() as cur:
