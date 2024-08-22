@@ -25,3 +25,92 @@ RUN adduser -u 1001 openreplay -D
 USER 1001
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ./entrypoint.sh
+
+
+
+# 这个Dockerfile用于构建一个基于Python 3.11 Alpine的`alerts`模块的Docker镜像。以下是该文件的详细解读：
+
+# ### 1. **基础镜像**
+# ```dockerfile
+# FROM python:3.11-alpine
+# ```
+# - 使用`python:3.11-alpine`作为基础镜像，Alpine是一种轻量级的Linux发行版，适合于构建较小的Docker镜像。
+
+# ### 2. **标签和构建参数**
+# ```dockerfile
+# LABEL Maintainer="Rajesh Rajendran<rjshrjndrn@gmail.com>"
+# LABEL Maintainer="KRAIEM Taha Yassine<tahayk2@gmail.com>"
+# ARG GIT_SHA
+# LABEL GIT_SHA=$GIT_SHA
+# ```
+# - `LABEL` 用于提供关于维护者和镜像的元数据。这里定义了两个维护者信息和`GIT_SHA`标签，它用于存储当前构建镜像所对应的Git提交ID。
+# - `ARG GIT_SHA` 表示这是一个在构建时可传递的参数。
+
+# ### 3. **安装必要的软件**
+# ```dockerfile
+# RUN apk add --no-cache build-base tini
+# ```
+# - 使用Alpine的包管理器`apk`来安装构建工具(`build-base`)和`tini`，其中`tini`是一个轻量级的init系统，用来处理容器中的进程信号。
+
+# ### 4. **环境变量**
+# ```dockerfile
+# ARG envarg
+# ENV APP_NAME=alerts \
+#     PG_MINCONN=1 \
+#     PG_MAXCONN=10 \
+#     LISTEN_PORT=8000 \
+#     PRIVATE_ENDPOINTS=true \
+#     GIT_SHA=$GIT_SHA \
+#     ENTERPRISE_BUILD=${envarg}
+# ```
+# - `ENV` 设置了一些应用和数据库连接的相关参数：
+#   - `APP_NAME=alerts`：应用的名称为`alerts`。
+#   - `PG_MINCONN=1`：最小数据库连接数。
+#   - `PG_MAXCONN=10`：最大数据库连接数。
+#   - `LISTEN_PORT=8000`：应用监听的端口号。
+#   - `PRIVATE_ENDPOINTS=true`：是否启用私有端点。
+#   - `GIT_SHA=$GIT_SHA`：Git的提交哈希值，用于追踪代码版本。
+#   - `ENTERPRISE_BUILD=${envarg}`：是否为企业版的构建，根据构建时传递的`envarg`参数决定。
+
+# ### 5. **设置工作目录**
+# ```dockerfile
+# WORKDIR /work
+# ```
+# - 设置工作目录为`/work`，之后的所有操作都将在这个目录下进行。
+
+# ### 6. **安装Python依赖**
+# ```dockerfile
+# COPY requirements-alerts.txt ./requirements.txt
+# RUN pip install --no-cache-dir --upgrade -r requirements.txt
+# ```
+# - 将`requirements-alerts.txt`复制到容器内并重命名为`requirements.txt`。
+# - 运行`pip install`安装Python依赖库，`--no-cache-dir`选项确保安装时不会缓存依赖，进一步减少镜像大小。
+
+# ### 7. **复制项目文件**
+# ```dockerfile
+# COPY . .
+# RUN mv env.default .env && mv app_alerts.py app.py && mv entrypoint_alerts.sh entrypoint.sh
+# ```
+# - 将当前目录下的所有文件复制到容器内。
+# - 将`env.default`重命名为`.env`以作为环境配置文件。
+# - 将`app_alerts.py`重命名为`app.py`，将`entrypoint_alerts.sh`重命名为`entrypoint.sh`，适应镜像中的文件结构。
+
+# ### 8. **设置非root用户**
+# ```dockerfile
+# RUN adduser -u 1001 openreplay -D
+# USER 1001
+# ```
+# - 创建一个名为`openreplay`的用户，并将用户ID设为1001。
+# - 切换到非root用户`openreplay`运行应用，以增强安全性。
+
+# ### 9. **设置容器启动命令**
+# ```dockerfile
+# ENTRYPOINT ["/sbin/tini", "--"]
+# CMD ./entrypoint.sh
+# ```
+# - 使用`tini`作为`ENTRYPOINT`，tini帮助容器处理进程信号，避免子进程无法正确终止的问题。
+# - 运行`entrypoint.sh`作为容器启动时的命令，用于启动应用程序。
+
+# ### 总结
+
+# 这个Dockerfile用来构建一个轻量级、基于Alpine的Python应用镜像，专门用于`alerts`模块。它包含依赖安装、环境变量配置、非root用户使用以及通过`tini`处理容器的进程信号，确保容器内的应用能稳定运行。
