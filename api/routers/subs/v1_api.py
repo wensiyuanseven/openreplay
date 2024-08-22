@@ -99,3 +99,88 @@ def create_project(data: schemas.CreateProjectSchema = Body(...),
     )
     del record["data"]['projectId']
     return record
+
+
+# API Endpoints
+# get_user_sessions
+# 路径: /v1/{projectKey}/users/{userId}/sessions
+# 方法: GET
+# 功能: 获取指定用户在项目中的所有会话信息。
+# 参数:
+# projectKey (str): 项目的唯一标识符。
+# userId (str): 用户的唯一标识符。
+# start_date (int, 可选): 开始日期时间戳（可选）。
+# end_date (int, 可选): 结束日期时间戳（可选）。
+# context (schemas.CurrentContext): 当前请求的上下文信息，用于识别项目ID和用户ID。
+# get_session_events
+# 路径: /v1/{projectKey}/sessions/{sessionId}/events
+# 方法: GET
+# 功能: 获取指定会话的所有事件。
+# 参数:
+# projectKey (str): 项目的唯一标识符。
+# sessionId (int): 会话的唯一标识符。
+# context (schemas.CurrentContext): 当前请求的上下文信息。
+# get_user_details
+# 路径: /v1/{projectKey}/users/{userId}
+# 方法: GET
+# 功能: 获取指定用户的详细信息。
+# 参数:
+# projectKey (str): 项目的唯一标识符。
+# userId (str): 用户的唯一标识符。
+# context (schemas.CurrentContext): 当前请求的上下文信息。
+# schedule_to_delete_user_data
+# 路径: /v1/{projectKey}/users/{userId}
+# 方法: DELETE
+# 功能: 安排删除指定用户的数据。
+# 参数:
+# projectKey (str): 项目的唯一标识符。
+# userId (str): 用户的唯一标识符。
+# context (schemas.CurrentContext): 当前请求的上下文信息。
+# get_jobs
+# 路径: /v1/{projectKey}/jobs
+# 方法: GET
+# 功能: 获取与项目相关的所有任务。
+# 参数:
+# projectKey (str): 项目的唯一标识符。
+# context (schemas.CurrentContext): 当前请求的上下文信息。
+# get_job
+# 路径: /v1/{projectKey}/jobs/{jobId}
+# 方法: GET
+# 功能: 获取特定任务的详细信息。
+# 参数:
+# projectKey (str): 项目的唯一标识符。
+# jobId (int): 任务的唯一标识符。
+# context (schemas.CurrentContext): 当前请求的上下文信息。
+# cancel_job
+# 路径: /v1/{projectKey}/jobs/{jobId}
+# 方法: DELETE
+# 功能: 取消指定任务。
+# 参数:
+# projectKey (str): 项目的唯一标识符。
+# jobId (int): 任务的唯一标识符。
+# context (schemas.CurrentContext): 当前请求的上下文信息。
+# get_projects
+# 路径: /v1/projects
+# 方法: GET
+# 功能: 获取租户下的所有项目。
+# 参数:
+# context (schemas.CurrentContext): 当前请求的上下文信息。
+# get_project
+# 路径: /v1/projects/{projectKey}
+# 方法: GET
+# 功能: 获取指定项目的详细信息。
+# 参数:
+# projectKey (str): 项目的唯一标识符。
+# context (schemas.CurrentContext): 当前请求的上下文信息。
+# create_project
+# 路径: /v1/projects
+# 方法: POST
+# 功能: 创建一个新项目。
+# 参数:
+# data (schemas.CreateProjectSchema): 包含新项目数据的对象。
+# context (schemas.CurrentContext): 当前请求的上下文信息。
+
+
+
+
+
