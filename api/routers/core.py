@@ -3,6 +3,7 @@
 # 这个文件是一个完整的后端 API 实现，支持多个模块和功能的集成与操作。它通过 FastAPI 框架来处理 HTTP 请求，并使用 Pydantic 的数据验证功能来确保请求数据的正确性和安全性。
 # 文件中涵盖了多个API端点，包括事件搜索、告警管理、元数据管理、用户通知管理、项目管理、集成管理等。
 from typing import Union
+from typing import Optional
 
 from decouple import config
 from fastapi import Depends, Body, BackgroundTasks
@@ -68,28 +69,37 @@ public_app, app, app_apikey = get_routers()
 
 # 作用: 允许用户基于项目 ID 和查询参数进行事件的自动完成和搜索。
 # 功能: 根据提供的查询参数搜索对应的事件，支持实时搜索和基于不同事件类型的搜索。
+
 @app.get("/{projectId}/autocomplete", tags=["events"])
 @app.get("/{projectId}/events/search", tags=["events"])
 def events_search(
     projectId: int,
     q: str,
-    type: Union[
-        schemas.FilterType,
-        schemas.EventType,
-        schemas.PerformanceEventType,
-        schemas.FetchFilterType,
-        schemas.GraphqlFilterType,
-        str,
+    type: Optional[
+        Union[
+            schemas.FilterType,
+            schemas.EventType,
+            schemas.PerformanceEventType,
+            schemas.FetchFilterType,
+            schemas.GraphqlFilterType,
+            str,
+        ]
     ] = None,
-    key: str = None,
-    source: str = None,
+    key: Optional[str] = None,
+    source: Optional[str] = None,
     live: bool = False,
     context: schemas.CurrentContext = Depends(OR_context),
 ):
+    # 接口传枚举
+    # 如果定义的只有枚举  那么打印出来的就是 <enum 'EventType'> EventType
+    # 而如果既有字符串又有枚举，就像当前接口，那么打印出来的就是字符串，即使你传入的是字符串枚举，那么打印出来的也是字符串
     if len(q) == 0:
         return {"data": []}
     if live:
-        return assist.autocomplete(project_id=projectId, q=q, key=key if key is not None else type)
+        # TODO 逻辑
+        # 三元表达式 如果 key 不是 None，则返回 key 的值；否则返回 type。
+        return assist.autocomplete(project_id=projectId, q=q, key=key if key is not None else type) # type: ignore
+   # 接口调用 那前端传递的就是枚举字符串
     if type in [schemas.FetchFilterType._url]:
         type = schemas.EventType.request
     elif type in [schemas.GraphqlFilterType._name]:
@@ -111,12 +121,14 @@ def events_search(
     result = events.search(text=q, event_type=type, project_id=projectId, source=source, key=key)
     return result
 
+
 # 作用: 获取项目的集成状态。
 # 功能: 根据项目 ID 获取当前项目的所有集成状态信息。
 @app.get("/{projectId}/integrations", tags=["integrations"])
 def get_integrations_status(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     data = integrations_global.get_global_integrations_status(tenant_id=context.tenant_id, user_id=context.user_id, project_id=projectId)
     return {"data": data}
+
 
 # 根据传入的 integration 和 source 类型，触发特定的通知到对应的集成（例如 Slack、Microsoft Teams）。该函数接受通知内容，并根据 sourceId 进行相应的处理和分享。
 # 参数:
@@ -127,6 +139,8 @@ def get_integrations_status(projectId: int, context: schemas.CurrentContext = De
 # sourceId (str): 具体的会话或错误的唯一标识符。
 # data (schemas.IntegrationNotificationSchema): 通知的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
+
 @app.post(
     "/{projectId}/integrations/{integration}/notify/{webhookId}/{source}/{sourceId}",
     tags=["integrations"],
@@ -172,6 +186,7 @@ def integration_notify(
 def get_all_sentry(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_sentry.get_all(tenant_id=context.tenant_id)}
 
+
 # 获取特定项目的 Sentry 集成信息。
 # 参数:
 # projectId (int): 项目的唯一标识符。
@@ -179,6 +194,7 @@ def get_all_sentry(context: schemas.CurrentContext = Depends(OR_context)):
 @app.get("/{projectId}/integrations/sentry", tags=["integrations"])
 def get_sentry(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_sentry.get(project_id=projectId)}
+
 
 # 为指定项目添加或编辑 Sentry 集成。
 # 参数:
@@ -193,6 +209,7 @@ def add_edit_sentry(
 ):
     return {"data": log_tool_sentry.add_edit(tenant_id=context.tenant_id, project_id=projectId, data=data)}
 
+
 # 删除指定项目的 Sentry 集成。
 # 参数:
 # projectId (int): 项目的唯一标识符。
@@ -201,24 +218,29 @@ def add_edit_sentry(
 def delete_sentry(projectId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_sentry.delete(tenant_id=context.tenant_id, project_id=projectId)}
 
+
 # 代理获取 Sentry 事件的详细信息。
 # 参数:
 # projectId (int): 项目的唯一标识符。
 # eventId (str): Sentry 事件的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/{projectId}/integrations/sentry/events/{eventId}", tags=["integrations"])
 def proxy_sentry(projectId: int, eventId: str, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_sentry.proxy_get(tenant_id=context.tenant_id, project_id=projectId, event_id=eventId)}
+
 
 # 获取当前租户下的所有 Datadog 集成信息。
 
 # 参数:
 
+
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/integrations/datadog", tags=["integrations"])
 def get_all_datadog(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_datadog.get_all(tenant_id=context.tenant_id)}
+
 
 # 获取指定项目的 Datadog 集成信息。
 
@@ -227,13 +249,16 @@ def get_all_datadog(context: schemas.CurrentContext = Depends(OR_context)):
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/{projectId}/integrations/datadog", tags=["integrations"])
 def get_datadog(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_datadog.get(project_id=projectId)}
 
+
 # 为指定项目添加或编辑 Datadog 集成。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # data (schemas.IntegrationDatadogSchema): 包含 Datadog 集成的配置信息。
@@ -246,9 +271,11 @@ def add_edit_datadog(
 ):
     return {"data": log_tool_datadog.add_edit(tenant_id=context.tenant_id, project_id=projectId, data=data)}
 
+
 # 删除指定项目的 Datadog 集成。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -256,14 +283,17 @@ def add_edit_datadog(
 def delete_datadog(projectId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_datadog.delete(tenant_id=context.tenant_id, project_id=projectId)}
 
+
 # 获取当前租户下的所有 Stackdriver 集成信息。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/integrations/stackdriver", tags=["integrations"])
 def get_all_stackdriver(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_stackdriver.get_all(tenant_id=context.tenant_id)}
+
 
 # 获取指定项目的 Stackdriver 集成信息。
 
@@ -272,13 +302,16 @@ def get_all_stackdriver(context: schemas.CurrentContext = Depends(OR_context)):
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/{projectId}/integrations/stackdriver", tags=["integrations"])
 def get_stackdriver(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_stackdriver.get(project_id=projectId)}
 
+
 # 为指定项目添加或编辑 Stackdriver 集成。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # data (schemas.IntegartionStackdriverSchema): 包含 Stackdriver 集成的配置信息。
@@ -291,9 +324,11 @@ def add_edit_stackdriver(
 ):
     return {"data": log_tool_stackdriver.add_edit(tenant_id=context.tenant_id, project_id=projectId, data=data)}
 
+
 # 删除指定项目的 Stackdriver 集成。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -301,15 +336,18 @@ def add_edit_stackdriver(
 def delete_stackdriver(projectId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_stackdriver.delete(tenant_id=context.tenant_id, project_id=projectId)}
 
+
 # 获取当前租户下的所有 New Relic 集成信息。
 
 # 参数:
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/integrations/newrelic", tags=["integrations"])
 def get_all_newrelic(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_newrelic.get_all(tenant_id=context.tenant_id)}
+
 
 # 获取指定项目的 New Relic 集成信息。
 
@@ -318,13 +356,16 @@ def get_all_newrelic(context: schemas.CurrentContext = Depends(OR_context)):
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/{projectId}/integrations/newrelic", tags=["integrations"])
 def get_newrelic(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_newrelic.get(project_id=projectId)}
 
+
 # 为指定项目添加或编辑 New Relic 集成。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # data (schemas.IntegrationNewrelicSchema): 包含 New Relic 集成的配置信息。
@@ -337,9 +378,11 @@ def add_edit_newrelic(
 ):
     return {"data": log_tool_newrelic.add_edit(tenant_id=context.tenant_id, project_id=projectId, data=data)}
 
+
 # 删除指定项目的 New Relic 集成。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -347,25 +390,26 @@ def add_edit_newrelic(
 def delete_newrelic(projectId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_newrelic.delete(tenant_id=context.tenant_id, project_id=projectId)}
 
+
 # 获取当前租户下的所有 Rollbar 集成信息。
-
 # 参数:
-
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
-
 @app.get("/integrations/rollbar", tags=["integrations"])
 def get_all_rollbar(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_rollbar.get_all(tenant_id=context.tenant_id)}
 
+
 # 获取指定项目的 Rollbar 集成信息。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/{projectId}/integrations/rollbar", tags=["integrations"])
 def get_rollbar(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_rollbar.get(project_id=projectId)}
+
 
 # 为指定项目添加或编辑 Rollbar 集成。
 
@@ -375,6 +419,7 @@ def get_rollbar(projectId: int, context: schemas.CurrentContext = Depends(OR_con
 # data (schemas.IntegrationRollbarSchema): 包含 Rollbar 集成的配置信息。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.post("/{projectId}/integrations/rollbar", tags=["integrations"])
 def add_edit_rollbar(
     projectId: int,
@@ -383,6 +428,7 @@ def add_edit_rollbar(
 ):
     return {"data": log_tool_rollbar.add_edit(tenant_id=context.tenant_id, project_id=projectId, data=data)}
 
+
 # 删除指定项目的 Rollbar 集成。
 
 # 参数:
@@ -390,9 +436,11 @@ def add_edit_rollbar(
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.delete("/{projectId}/integrations/rollbar", tags=["integrations"])
 def delete_datadog(projectId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_rollbar.delete(tenant_id=context.tenant_id, project_id=projectId)}
+
 
 # 列出 Bugsnag 中的所有项目。
 
@@ -401,6 +449,7 @@ def delete_datadog(projectId: int, _=Body(None), context: schemas.CurrentContext
 # data (schemas.IntegrationBugsnagBasicSchema): 包含授权信息的对象，用于访问 Bugsnag。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.post("/integrations/bugsnag/list_projects", tags=["integrations"])
 def list_projects_bugsnag(
     data: schemas.IntegrationBugsnagBasicSchema = Body(...),
@@ -408,25 +457,30 @@ def list_projects_bugsnag(
 ):
     return {"data": log_tool_bugsnag.list_projects(auth_token=data.authorization_token)}
 
+
 # 获取当前租户下的所有 Bugsnag 集成信息。
 
 # 参数:
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/integrations/bugsnag", tags=["integrations"])
 def get_all_bugsnag(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_bugsnag.get_all(tenant_id=context.tenant_id)}
 
+
 # 获取指定项目的 Bugsnag 集成信息。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/{projectId}/integrations/bugsnag", tags=["integrations"])
 def get_bugsnag(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_bugsnag.get(project_id=projectId)}
+
 
 # 为指定项目添加或编辑 Bugsnag 集成。
 
@@ -436,6 +490,7 @@ def get_bugsnag(projectId: int, context: schemas.CurrentContext = Depends(OR_con
 # data (schemas.IntegrationBugsnagSchema): 包含 Bugsnag 集成的配置信息。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.post("/{projectId}/integrations/bugsnag", tags=["integrations"])
 def add_edit_bugsnag(
     projectId: int,
@@ -444,6 +499,7 @@ def add_edit_bugsnag(
 ):
     return {"data": log_tool_bugsnag.add_edit(tenant_id=context.tenant_id, project_id=projectId, data=data)}
 
+
 # 删除指定项目的 Bugsnag 集成。
 
 # 参数:
@@ -451,13 +507,16 @@ def add_edit_bugsnag(
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.delete("/{projectId}/integrations/bugsnag", tags=["integrations"])
 def delete_bugsnag(projectId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_bugsnag.delete(tenant_id=context.tenant_id, project_id=projectId)}
 
+
 # 列出 CloudWatch 中的所有日志组。
 
 # 参数:
+
 
 # data (schemas.IntegrationCloudwatchBasicSchema): 包含 CloudWatch 的认证信息（访问密钥 ID、密钥、区域）。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -474,11 +533,13 @@ def list_groups_cloudwatch(
         )
     }
 
+
 # 获取当前租户下所有的 CloudWatch 集成信息。
 
 # 参数:
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.get("/integrations/cloudwatch", tags=["integrations"])
 def get_all_cloudwatch(context: schemas.CurrentContext = Depends(OR_context)):
@@ -492,9 +553,11 @@ def get_all_cloudwatch(context: schemas.CurrentContext = Depends(OR_context)):
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/{projectId}/integrations/cloudwatch", tags=["integrations"])
 def get_cloudwatch(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_cloudwatch.get(project_id=projectId)}
+
 
 # 为指定项目添加或编辑 CloudWatch 集成。
 
@@ -504,6 +567,7 @@ def get_cloudwatch(projectId: int, context: schemas.CurrentContext = Depends(OR_
 # data (schemas.IntegrationCloudwatchSchema): 包含 CloudWatch 集成的配置信息。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.post("/{projectId}/integrations/cloudwatch", tags=["integrations"])
 def add_edit_cloudwatch(
     projectId: int,
@@ -512,6 +576,7 @@ def add_edit_cloudwatch(
 ):
     return {"data": log_tool_cloudwatch.add_edit(tenant_id=context.tenant_id, project_id=projectId, data=data)}
 
+
 # 删除指定项目的 CloudWatch 集成。
 
 # 参数:
@@ -519,9 +584,11 @@ def add_edit_cloudwatch(
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.delete("/{projectId}/integrations/cloudwatch", tags=["integrations"])
 def delete_cloudwatch(projectId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_cloudwatch.delete(tenant_id=context.tenant_id, project_id=projectId)}
+
 
 # 获取当前租户下所有的 Elasticsearch 集成信息。
 
@@ -529,9 +596,11 @@ def delete_cloudwatch(projectId: int, _=Body(None), context: schemas.CurrentCont
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/integrations/elasticsearch", tags=["integrations"])
 def get_all_elasticsearch(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_elasticsearch.get_all(tenant_id=context.tenant_id)}
+
 
 # 获取指定项目的 Elasticsearch 集成信息。
 
@@ -540,13 +609,16 @@ def get_all_elasticsearch(context: schemas.CurrentContext = Depends(OR_context))
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/{projectId}/integrations/elasticsearch", tags=["integrations"])
 def get_elasticsearch(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_elasticsearch.get(project_id=projectId)}
 
+
 # 测试 Elasticsearch 集成的连接性。
 
 # 参数:
+
 
 # data (schemas.IntegrationElasticsearchTestSchema): 包含测试连接的配置信息。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -557,9 +629,11 @@ def test_elasticsearch_connection(
 ):
     return {"data": log_tool_elasticsearch.ping(tenant_id=context.tenant_id, data=data)}
 
+
 # 为指定项目添加或编辑 Elasticsearch 集成。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # data (schemas.IntegrationElasticsearchSchema): 包含 Elasticsearch 集成的配置信息。
@@ -572,6 +646,7 @@ def add_edit_elasticsearch(
 ):
     return {"data": log_tool_elasticsearch.add_edit(tenant_id=context.tenant_id, project_id=projectId, data=data)}
 
+
 # 删除指定项目的 Elasticsearch 集成。
 
 # 参数:
@@ -579,9 +654,11 @@ def add_edit_elasticsearch(
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.delete("/{projectId}/integrations/elasticsearch", tags=["integrations"])
 def delete_elasticsearch(projectId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_elasticsearch.delete(tenant_id=context.tenant_id, project_id=projectId)}
+
 
 # 获取当前租户下所有的 Sumo Logic 集成信息。
 
@@ -589,19 +666,23 @@ def delete_elasticsearch(projectId: int, _=Body(None), context: schemas.CurrentC
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/integrations/sumologic", tags=["integrations"])
 def get_all_sumologic(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_sumologic.get_all(tenant_id=context.tenant_id)}
 
+
 # 获取指定项目的 Sumo Logic 集成信息。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/{projectId}/integrations/sumologic", tags=["integrations"])
 def get_sumologic(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_sumologic.get(project_id=projectId)}
+
 
 # 为指定项目添加或编辑 Sumo Logic 集成。
 
@@ -611,6 +692,7 @@ def get_sumologic(projectId: int, context: schemas.CurrentContext = Depends(OR_c
 # data (schemas.IntegrationSumologicSchema): 包含 Sumo Logic 集成的配置信息。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.post("/{projectId}/integrations/sumologic", tags=["integrations"])
 def add_edit_sumologic(
     projectId: int,
@@ -619,6 +701,7 @@ def add_edit_sumologic(
 ):
     return {"data": log_tool_sumologic.add_edit(tenant_id=context.tenant_id, project_id=projectId, data=data)}
 
+
 # 删除指定项目的 Sumo Logic 集成。
 
 # 参数:
@@ -626,15 +709,18 @@ def add_edit_sumologic(
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.delete("/{projectId}/integrations/sumologic", tags=["integrations"])
 def delete_sumologic(projectId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": log_tool_sumologic.delete(tenant_id=context.tenant_id, project_id=projectId)}
+
 
 # 获取当前租户下所有集成状态信息。
 
 # 参数:
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.get("/integrations/issues", tags=["integrations"])
 def get_integration_status(context: schemas.CurrentContext = Depends(OR_context)):
@@ -650,6 +736,7 @@ def get_integration_status(context: schemas.CurrentContext = Depends(OR_context)
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/integrations/jira", tags=["integrations"])
 def get_integration_status_jira(context: schemas.CurrentContext = Depends(OR_context)):
     error, integration = integrations_manager.get_integration(
@@ -661,9 +748,11 @@ def get_integration_status_jira(context: schemas.CurrentContext = Depends(OR_con
         return error
     return {"data": integration.get_obfuscated()}
 
+
 # 获取 GitHub 集成的状态信息。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/integrations/github", tags=["integrations"])
@@ -679,9 +768,11 @@ def get_integration_status_github(
         return error
     return {"data": integration.get_obfuscated()}
 
+
 # 为当前租户添加或编辑 Jira 集成。
 
 # 参数:
+
 
 # data (schemas.IssueTrackingJiraSchema): 包含 Jira 集成的配置信息。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -701,12 +792,14 @@ def add_edit_jira_cloud(
         return error
     return {"data": integration.add_edit(data=data)}
 
+
 # 为当前租户添加或编辑 GitHub 集成。
 
 # 参数:
 
 # data (schemas.IssueTrackingGithubSchema): 包含 GitHub 集成的配置信息。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.post("/integrations/github", tags=["integrations"])
 def add_edit_github(
@@ -722,11 +815,13 @@ def add_edit_github(
         return error
     return {"data": integration.add_edit(data=data)}
 
+
 # 删除当前租户的默认问题跟踪工具。
 
 # 参数:
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.delete("/integrations/issues", tags=["integrations"])
 def delete_default_issue_tracking_tool(_=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
@@ -735,9 +830,11 @@ def delete_default_issue_tracking_tool(_=Body(None), context: schemas.CurrentCon
         return error
     return {"data": integration.delete()}
 
+
 # 删除当前租户的 Jira 集成。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.delete("/integrations/jira", tags=["integrations"])
@@ -752,9 +849,11 @@ def delete_jira_cloud(_=Body(None), context: schemas.CurrentContext = Depends(OR
         return error
     return {"data": integration.delete()}
 
+
 # 删除当前租户的 GitHub 集成。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.delete("/integrations/github", tags=["integrations"])
@@ -769,9 +868,11 @@ def delete_github(_=Body(None), context: schemas.CurrentContext = Depends(OR_con
         return error
     return {"data": integration.delete()}
 
+
 # 获取当前租户下所有问题跟踪项目。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/integrations/issues/list_projects", tags=["integrations"])
@@ -786,9 +887,11 @@ def get_all_issue_tracking_projects(
         return data
     return {"data": data}
 
+
 # 获取指定问题跟踪项目的元数据。
 
 # 参数:
+
 
 # integrationProjectId (int): 问题跟踪项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -802,6 +905,7 @@ def get_integration_metadata(integrationProjectId: int, context: schemas.Current
         return data
     return {"data": data}
 
+
 # 获取指定项目的所有分配任务信息。
 
 # 参数:
@@ -809,14 +913,17 @@ def get_integration_metadata(integrationProjectId: int, context: schemas.Current
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/{projectId}/assignments", tags=["assignment"])
 def get_all_assignments(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     data = sessions_assignments.get_all(project_id=projectId, user_id=context.user_id)
     return {"data": data}
 
+
 # 为指定会话创建新的问题分配任务。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # sessionId (int): 会话的唯一标识符。
@@ -849,15 +956,18 @@ def create_issue_assignment(
         return data
     return {"data": data}
 
+
 # 获取指定项目的 GDPR（通用数据保护条例）相关信息。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/{projectId}/gdpr", tags=["projects", "gdpr"])
 def get_gdpr(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": projects.get_gdpr(project_id=projectId)}
+
 
 # 编辑指定项目的 GDPR 信息。
 
@@ -866,6 +976,7 @@ def get_gdpr(projectId: int, context: schemas.CurrentContext = Depends(OR_contex
 # projectId (int): 项目的唯一标识符。
 # data (schemas.GdprSchema): 包含 GDPR 编辑信息的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.post("/{projectId}/gdpr", tags=["projects", "gdpr"])
 def edit_gdpr(
@@ -878,12 +989,14 @@ def edit_gdpr(
         return result
     return {"data": result}
 
+
 # 处理用户请求重置密码的流程，发送密码重置链接。
 
 # 参数:
 
 # background_tasks (BackgroundTasks): 用于处理后台任务。
 # data (schemas.ForgetPasswordPayloadSchema): 包含用户邮箱的重置密码请求数据。
+
 
 @public_app.post("/password/reset-link", tags=["reset password"])
 def reset_password_handler(
@@ -894,9 +1007,11 @@ def reset_password_handler(
         return {"errors": ["please provide a valid email address"]}
     return reset_password.reset(data=data, background_tasks=background_tasks)
 
+
 # 获取指定项目的元数据信息。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -914,6 +1029,7 @@ def get_metadata(projectId: int, context: schemas.CurrentContext = Depends(OR_co
 
 # 参数:
 
+
 # projectId (int): 项目的唯一标识符。
 # data (schemas.MetadataSchema): 包含要添加的元数据键值对。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -925,9 +1041,11 @@ def add_metadata(
 ):
     return metadata.add(tenant_id=context.tenant_id, project_id=projectId, new_name=data.key)
 
+
 # 编辑指定项目中的现有元数据。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # index (int): 元数据的索引。
@@ -947,9 +1065,11 @@ def edit_metadata(
         new_name=data.key,
     )
 
+
 # 删除指定项目的元数据。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # index (int): 元数据的索引。
@@ -963,9 +1083,11 @@ def delete_metadata(
 ):
     return metadata.delete(tenant_id=context.tenant_id, project_id=projectId, index=index)
 
+
 # 根据键和值在指定项目中搜索元数据。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # q (str): 搜索的值。
@@ -986,6 +1108,7 @@ def search_metadata(
         return {"errors": ["please provide a key for search"]}
     return metadata.search(tenant_id=context.tenant_id, project_id=projectId, value=q, key=key)
 
+
 # 搜索指定项目的所有日志工具集成源。
 
 # 参数:
@@ -993,9 +1116,11 @@ def search_metadata(
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/{projectId}/integration/sources", tags=["integrations"])
 def search_integrations(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return log_tools.search(project_id=projectId)
+
 
 # 获取指定项目的捕获状态。
 
@@ -1004,9 +1129,11 @@ def search_integrations(projectId: int, context: schemas.CurrentContext = Depend
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/{projectId}/sample_rate", tags=["projects"])
 def get_capture_status(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": projects.get_capture_status(project_id=projectId)}
+
 
 # 更新指定项目的捕获状态。
 
@@ -1016,6 +1143,7 @@ def get_capture_status(projectId: int, context: schemas.CurrentContext = Depends
 # data (schemas.SampleRateSchema): 包含捕获状态的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.post("/{projectId}/sample_rate", tags=["projects"])
 def update_capture_status(
     projectId: int,
@@ -1024,9 +1152,11 @@ def update_capture_status(
 ):
     return {"data": projects.update_capture_status(project_id=projectId, changes=data)}
 
+
 # 更新项目条件或规则。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # data (schemas.ProjectSettings): 包含项目的条件设置。
@@ -1039,9 +1169,11 @@ def update_conditions(
 ):
     return {"data": projects.update_conditions(project_id=projectId, changes=data)}
 
+
 # 获取指定项目的条件设置。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1049,32 +1181,39 @@ def update_conditions(
 def get_conditions(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": projects.get_conditions(project_id=projectId)}
 
+
 # 获取当前用户的所有公告。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/announcements", tags=["announcements"])
 def get_all_announcements(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": announcements.get_all(user_id=context.user_id)}
 
+
 # 查看所有公告的状态。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/announcements/view", tags=["announcements"])
 def get_all_announcements(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": announcements.view(user_id=context.user_id)}
 
+
 # 检查错误合并状态，通常用于显示错误横幅。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/show_banner", tags=["banner"])
 def errors_merge(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": False}
+
 
 # 为指定项目创建新的警报。
 
@@ -1084,6 +1223,7 @@ def errors_merge(context: schemas.CurrentContext = Depends(OR_context)):
 # data (schemas.AlertSchema): 包含警报设置的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.post("/{projectId}/alerts", tags=["alerts"])
 def create_alert(
     projectId: int,
@@ -1092,6 +1232,7 @@ def create_alert(
 ):
     return alerts.create(project_id=projectId, data=data)
 
+
 # 获取指定项目的所有警报。
 
 # 参数:
@@ -1099,13 +1240,16 @@ def create_alert(
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/{projectId}/alerts", tags=["alerts"])
 def get_all_alerts(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": alerts.get_all(project_id=projectId)}
 
+
 # 获取项目中的所有警报触发器以及自定义指标的序列。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1113,9 +1257,11 @@ def get_all_alerts(projectId: int, context: schemas.CurrentContext = Depends(OR_
 def get_alerts_triggers(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": alerts.get_predefined_values() + custom_metrics.get_series_for_alert(project_id=projectId, user_id=context.user_id)}
 
+
 # 获取指定警报的详细信息。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # alertId (int): 警报的唯一标识符。
@@ -1124,9 +1270,11 @@ def get_alerts_triggers(projectId: int, context: schemas.CurrentContext = Depend
 def get_alert(projectId: int, alertId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": alerts.get(id=alertId)}
 
+
 # 更新指定警报的设置。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # alertId (int): 警报的唯一标识符。
@@ -1141,9 +1289,11 @@ def update_alert(
 ):
     return alerts.update(id=alertId, data=data)
 
+
 # 删除指定的警报。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # alertId (int): 警报的唯一标识符。
@@ -1157,6 +1307,7 @@ def delete_alert(
 ):
     return alerts.delete(project_id=projectId, alert_id=alertId)
 
+
 # 为指定项目签署 SourceMap 上传 URL，用于上传错误源映射文件。
 
 # 参数:
@@ -1164,6 +1315,7 @@ def delete_alert(
 # projectKey (str): 项目的唯一标识符。
 # data (schemas.SourcemapUploadPayloadSchema): 包含 URL 数据的请求体。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app_apikey.put("/{projectKey}/sourcemaps/", tags=["sourcemaps"])
 @app_apikey.put("/{projectKey}/sourcemaps", tags=["sourcemaps"])
@@ -1174,19 +1326,23 @@ def sign_sourcemap_for_upload(
 ):
     return {"data": sourcemaps.presign_upload_urls(project_id=context.project.project_id, urls=data.urls)}
 
+
 # 获取当前用户的每周报告配置。
 
 # 参数:
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/config/weekly_report", tags=["weekly report config"])
 def get_weekly_report_config(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": weekly_report.get_config(user_id=context.user_id)}
 
+
 # 编辑当前用户的每周报告配置。
 
 # 参数:
+
 
 # data (schemas.WeeklyReportConfigSchema): 包含每周报告配置信息的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1197,9 +1353,11 @@ def edit_weekly_report_config(
 ):
     return {"data": weekly_report.edit_config(user_id=context.user_id, weekly_report=data.weekly_report)}
 
+
 # 获取指定项目中的所有问题类型。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1207,19 +1365,23 @@ def edit_weekly_report_config(
 def issue_types(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": issues.get_all_types()}
 
+
 # 获取系统中所有问题类型。
 
 # 参数:
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/issue_types", tags=["issues"])
 def all_issue_types(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": issues.get_all_types()}
 
+
 # 获取指定项目中的实时协助会话。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # userId (str, 可选): 用户的唯一标识符，用于过滤结果。
@@ -1233,9 +1395,11 @@ def get_sessions_live(
     data = assist.get_live_sessions_ws_user_id(projectId, user_id=userId)
     return {"data": data}
 
+
 # 根据搜索条件获取指定项目中的实时协助会话。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # data (schemas.LiveSessionsSearchPayloadSchema): 包含会话搜索条件的数据。
@@ -1249,6 +1413,7 @@ def sessions_live(
     data = assist.get_live_sessions_ws(projectId, body=data)
     return {"data": data}
 
+
 # 签署移动端会话的 URL 用于处理相关数据。
 
 # 参数:
@@ -1257,6 +1422,7 @@ def sessions_live(
 # sessionId (int): 会话的唯一标识符。
 # data (schemas.MobileSignPayloadSchema): 包含需要签署的密钥数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.post("/{projectId}/mobile/{sessionId}/urls", tags=["mobile"])
 def mobile_signe(
@@ -1267,12 +1433,14 @@ def mobile_signe(
 ):
     return {"data": mobile.sign_keys(project_id=projectId, session_id=sessionId, keys=data.keys)}
 
+
 # 为租户创建一个新的项目。
 
 # 参数:
 
 # data (schemas.CreateProjectSchema): 包含新项目创建信息的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.post("/projects", tags=["projects"], dependencies=[OR_role("owner", "admin")])
 def create_project(
@@ -1281,9 +1449,11 @@ def create_project(
 ):
     return projects.create(tenant_id=context.tenant_id, user_id=context.user_id, data=data)
 
+
 # 获取指定项目的详细信息，包括最近一次的会话和 GDPR 设置。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1299,6 +1469,7 @@ def get_project(projectId: int, context: schemas.CurrentContext = Depends(OR_con
         return {"errors": ["project not found"]}
     return {"data": data}
 
+
 # 编辑指定项目的详细信息。
 
 # 参数:
@@ -1306,6 +1477,7 @@ def get_project(projectId: int, context: schemas.CurrentContext = Depends(OR_con
 # projectId (int): 项目的唯一标识符。
 # data (schemas.CreateProjectSchema): 包含项目更新信息的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.put("/projects/{projectId}", tags=["projects"], dependencies=[OR_role("owner", "admin")])
 def edit_project(
@@ -1320,6 +1492,7 @@ def edit_project(
         project_id=projectId,
     )
 
+
 # 删除指定的项目。
 
 # 参数:
@@ -1327,18 +1500,22 @@ def edit_project(
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.delete("/projects/{projectId}", tags=["projects"], dependencies=[OR_role("owner", "admin")])
 def delete_project(projectId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return projects.delete(tenant_id=context.tenant_id, user_id=context.user_id, project_id=projectId)
+
 
 # 为当前租户生成一个新的 API 密钥。
 
 # 参数:
 
+
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/client/new_api_key", tags=["client"])
 def generate_new_tenant_token(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": tenants.generate_new_api_key(context.tenant_id)}
+
 
 # 更新当前用户的模块状态信息。
 
@@ -1347,6 +1524,7 @@ def generate_new_tenant_token(context: schemas.CurrentContext = Depends(OR_conte
 # data (schemas.ModuleStatus): 包含模块状态的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.post("/users/modules", tags=["users"])
 def update_user_module(
     context: schemas.CurrentContext = Depends(OR_context),
@@ -1354,14 +1532,17 @@ def update_user_module(
 ):
     return {"data": users.update_user_module(context.user_id, data)}
 
+
 # 获取当前用户的所有通知。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/notifications", tags=["notifications"])
 def get_notifications(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": notifications.get_all(tenant_id=context.tenant_id, user_id=context.user_id)}
+
 
 # 获取当前用户的未读通知计数。
 
@@ -1369,13 +1550,16 @@ def get_notifications(context: schemas.CurrentContext = Depends(OR_context)):
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/notifications/count", tags=["notifications"])
 def get_notifications_count(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": notifications.get_all_count(tenant_id=context.tenant_id, user_id=context.user_id)}
 
+
 # 标记指定通知为已读。
 
 # 参数:
+
 
 # notificationId (int): 通知的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1383,9 +1567,11 @@ def get_notifications_count(context: schemas.CurrentContext = Depends(OR_context
 def view_notifications(notificationId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": notifications.view_notification(notification_ids=[notificationId], user_id=context.user_id)}
 
+
 # 批量标记通知为已读。
 
 # 参数:
+
 
 # data (schemas.NotificationsViewSchema): 包含要标记的通知 ID 列表及相关时间戳的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1404,9 +1590,11 @@ def batch_view_notifications(
         )
     }
 
+
 # 获取租户的用户登机（boarding）状态。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/boarding", tags=["boarding"])
@@ -1415,9 +1603,11 @@ def get_boarding_state(context: schemas.CurrentContext = Depends(OR_context)):
         return {"data": ""}
     return {"data": boarding.get_state(tenant_id=context.tenant_id)}
 
+
 # 获取租户用户登机过程中安装状态。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/boarding/installing", tags=["boarding"])
@@ -1426,9 +1616,11 @@ def get_boarding_state_installing(
 ):
     return {"data": boarding.get_state_installing(tenant_id=context.tenant_id)}
 
+
 # 获取租户用户登机过程中识别用户的状态。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/boarding/identify-users", tags=["boarding"])
@@ -1437,9 +1629,11 @@ def get_boarding_state_identify_users(
 ):
     return {"data": boarding.get_state_identify_users(tenant_id=context.tenant_id)}
 
+
 # 获取租户用户登机过程中管理用户的状态。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/boarding/manage-users", tags=["boarding"])
@@ -1448,11 +1642,13 @@ def get_boarding_state_manage_users(
 ):
     return {"data": boarding.get_state_manage_users(tenant_id=context.tenant_id)}
 
+
 # 获取租户用户登机过程中集成系统的状态。
 
 # 参数:
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.get("/boarding/integrations", tags=["boarding"])
 def get_boarding_state_integrations(
@@ -1460,14 +1656,17 @@ def get_boarding_state_integrations(
 ):
     return {"data": boarding.get_state_integrations(tenant_id=context.tenant_id)}
 
+
 # 获取当前租户的 Slack 渠道信息。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/integrations/slack/channels", tags=["integrations"])
 def get_slack_channels(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": webhook.get_by_type(tenant_id=context.tenant_id, webhook_type=schemas.WebhookType.slack)}
+
 
 # 获取指定 Slack 集成的 Webhook 详细信息。
 
@@ -1476,9 +1675,11 @@ def get_slack_channels(context: schemas.CurrentContext = Depends(OR_context)):
 # integrationId (int): Slack 集成的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/integrations/slack/{integrationId}", tags=["integrations"])
 def get_slack_webhook(integrationId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": Slack.get_integration(tenant_id=context.tenant_id, integration_id=integrationId)}
+
 
 # 删除指定的 Slack 集成。
 
@@ -1486,6 +1687,7 @@ def get_slack_webhook(integrationId: int, context: schemas.CurrentContext = Depe
 
 # integrationId (int): Slack 集成的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.delete("/integrations/slack/{integrationId}", tags=["integrations"])
 def delete_slack_integration(
@@ -1495,12 +1697,14 @@ def delete_slack_integration(
 ):
     return webhook.delete(tenant_id=context.tenant_id, webhook_id=integrationId)
 
+
 # 添加或编辑 Webhook。
 
 # 参数:
 
 # data (schemas.WebhookSchema): 包含 Webhook 设置信息的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.put("/webhooks", tags=["webhooks"])
 def add_edit_webhook(
@@ -1509,15 +1713,18 @@ def add_edit_webhook(
 ):
     return {"data": webhook.add_edit(tenant_id=context.tenant_id, data=data, replace_none=True)}
 
+
 # 获取当前租户的所有 Webhook 信息。
 
 # 参数:
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/webhooks", tags=["webhooks"])
 def get_webhooks(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": webhook.get_by_tenant(tenant_id=context.tenant_id, replace_none=True)}
+
 
 # 删除指定的 Webhook。
 
@@ -1526,22 +1733,27 @@ def get_webhooks(context: schemas.CurrentContext = Depends(OR_context)):
 # webhookId (int): Webhook 的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.delete("/webhooks/{webhookId}", tags=["webhooks"])
 def delete_webhook(webhookId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return webhook.delete(tenant_id=context.tenant_id, webhook_id=webhookId)
 
+
 # 获取租户的所有成员信息。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/client/members", tags=["client"], dependencies=[OR_role("owner", "admin")])
 def get_members(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": users.get_members(tenant_id=context.tenant_id)}
 
+
 # 重新邀请或重置指定的成员。
 
 # 参数:
+
 
 # memberId (int): 成员的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1557,6 +1769,7 @@ def reset_reinvite_member(memberId: int, context: schemas.CurrentContext = Depen
         user_id_to_update=memberId,
     )
 
+
 # 作用:
 # 删除指定的成员。
 
@@ -1564,6 +1777,7 @@ def reset_reinvite_member(memberId: int, context: schemas.CurrentContext = Depen
 
 # memberId (int): 成员的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.delete(
     "/client/members/{memberId}",
@@ -1573,14 +1787,17 @@ def reset_reinvite_member(memberId: int, context: schemas.CurrentContext = Depen
 def delete_member(memberId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return users.delete_member(tenant_id=context.tenant_id, user_id=context.user_id, id_to_delete=memberId)
 
+
 # 为当前用户生成一个新的 API 密钥。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/account/new_api_key", tags=["account"], dependencies=[OR_role("owner", "admin")])
 def generate_new_user_token(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": users.generate_new_api_key(user_id=context.user_id)}
+
 
 # 更改当前用户的密码。
 
@@ -1588,6 +1805,7 @@ def generate_new_user_token(context: schemas.CurrentContext = Depends(OR_context
 
 # data (schemas.EditUserPasswordSchema): 包含旧密码和新密码的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.post("/account/password", tags=["account"])
 def change_client_password(
@@ -1602,6 +1820,7 @@ def change_client_password(
         user_id=context.user_id,
     )
 
+
 # 为指定项目创建保存的搜索条件。
 
 # 参数:
@@ -1609,6 +1828,7 @@ def change_client_password(
 # projectId (int): 项目的唯一标识符。
 # data (schemas.SavedSearchSchema): 包含保存的搜索条件的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.post("/{projectId}/saved_search", tags=["savedSearch"])
 def add_saved_search(
@@ -1618,9 +1838,11 @@ def add_saved_search(
 ):
     return saved_search.create(project_id=projectId, user_id=context.user_id, data=data)
 
+
 # 获取指定项目的所有已保存搜索条件。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1628,9 +1850,11 @@ def add_saved_search(
 def get_saved_searches(projectId: int, context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": saved_search.get_all(project_id=projectId, user_id=context.user_id, details=True)}
 
+
 # 获取指定保存搜索条件的详细信息。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # search_id (int): 已保存搜索的唯一标识符。
@@ -1643,9 +1867,11 @@ def get_saved_search(
 ):
     return {"data": saved_search.get(project_id=projectId, search_id=search_id, user_id=context.user_id)}
 
+
 # 更新指定的保存搜索条件。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # search_id (int): 已保存搜索的唯一标识符。
@@ -1667,9 +1893,11 @@ def update_saved_search(
         )
     }
 
+
 # 删除指定的保存搜索条件。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # search_id (int): 已保存搜索的唯一标识符。
@@ -1683,9 +1911,11 @@ def delete_saved_search(
 ):
     return {"data": saved_search.delete(project_id=projectId, user_id=context.user_id, search_id=search_id)}
 
+
 # 获取当前用户的使用限制（如团队成员和项目数量）。
 
 # 参数:
+
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 @app.get("/limits", tags=["accounts"])
@@ -1697,19 +1927,23 @@ def get_limits(context: schemas.CurrentContext = Depends(OR_context)):
         }
     }
 
+
 # 获取 Microsoft Teams 渠道信息。
 
 # 参数:
 
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.get("/integrations/msteams/channels", tags=["integrations"])
 def get_msteams_channels(context: schemas.CurrentContext = Depends(OR_context)):
     return {"data": webhook.get_by_type(tenant_id=context.tenant_id, webhook_type=schemas.WebhookType.msteams)}
 
+
 # 为当前租户添加 Microsoft Teams 集成。
 
 # 参数:
+
 
 # data (schemas.AddCollaborationSchema): 包含 Microsoft Teams 集成信息的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1723,6 +1957,7 @@ def add_msteams_integration(
         return {"errors": ["We couldn't send you a test message on your Microsoft Teams channel. Please verify your webhook url."]}
     return {"data": n}
 
+
 # 编辑 Microsoft Teams 集成。
 
 # 参数:
@@ -1730,6 +1965,7 @@ def add_msteams_integration(
 # webhookId (int): Microsoft Teams 集成的唯一标识符。
 # data (schemas.EditCollaborationSchema): 包含更新后的 Microsoft Teams 集成数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
+
 
 @app.post("/integrations/msteams/{webhookId}", tags=["integrations"])
 def edit_msteams_integration(
@@ -1752,6 +1988,7 @@ def edit_msteams_integration(
         )
     }
 
+
 # 删除 Microsoft Teams 集成。
 
 # 参数:
@@ -1759,15 +1996,18 @@ def edit_msteams_integration(
 # webhookId (int): Microsoft Teams 集成的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
 
+
 @app.delete("/integrations/msteams/{webhookId}", tags=["integrations"])
 def delete_msteams_integration(webhookId: int, _=Body(None), context: schemas.CurrentContext = Depends(OR_context)):
     return webhook.delete(tenant_id=context.tenant_id, webhook_id=webhookId)
+
 
 # 检查指定项目的录制状态和会话计数。
 
 # 参数:
 
 # project_id (int): 项目的唯一标识符。
+
 
 @app.get("/{project_id}/check-recording-status", tags=["sessions"])
 async def check_recording_status(project_id: int):
@@ -1790,7 +2030,9 @@ async def check_recording_status(project_id: int):
     """
     return {"data": sessions.check_recording_status(project_id=project_id)}
 
+
 # 执行健康检查以确保系统正常运行。
+
 
 # 参数: 无。
 @public_app.get("/", tags=["health"])
@@ -1804,6 +2046,7 @@ def health_check():
 
 # 参数:
 
+
 # projectId (int): 项目的唯一标识符。
 # data (schemas.TagCreate): 包含标签信息的数据。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1816,9 +2059,11 @@ def tags_create(
     data = tags.create_tag(project_id=projectId, data=data)
     return {"data": data}
 
+
 # 更新指定项目的标签。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # tagId (int): 标签的唯一标识符。
@@ -1834,9 +2079,11 @@ def tags_update(
     data = tags.update_tag(project_id=projectId, tag_id=tagId, data=data)
     return {"data": data}
 
+
 # 获取指定项目中的所有标签。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # context (schemas.CurrentContext): 当前请求的上下文，依赖于 OR_context。
@@ -1845,9 +2092,11 @@ def tags_list(projectId: int, context: schemas.CurrentContext = Depends(OR_conte
     data = tags.list_tags(project_id=projectId)
     return {"data": data}
 
+
 # 删除指定项目中的标签。
 
 # 参数:
+
 
 # projectId (int): 项目的唯一标识符。
 # tagId (int): 标签的唯一标识符。

@@ -1,1 +1,4 @@
+
+; 虽然 .gitignore 忽略整个 .venv 目录：这意味着 .venv 目录中的文件不会被提交到 Git，包括 .gitkeep 文件在内。
+; 但这并不意味着 .gitkeep 文件无用。.gitkeep 文件是一个占位符，确保 .venv 目录本身可以被手动创建，而不需要关心目录内容。
 .venv

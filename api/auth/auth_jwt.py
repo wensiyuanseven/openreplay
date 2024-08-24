@@ -1,3 +1,5 @@
+# 这个文件实现了基于JWT（JSON Web Token）的认证机制，主要用于对API请求进行身份验证。通过JWT令牌，系统可以确保用户的身份，并授权用户访问相应的资源。
+# 文件中的功能包括解析JWT令牌、校验令牌是否有效、并在某些情况下处理刷新令牌的逻辑。
 import datetime
 import logging
 from typing import Optional
@@ -78,11 +80,6 @@ class JWTAuth(HTTPBearer):
 
         logger.warning("Invalid authorization code.")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid authorization code.")
-
-
-# 文件作用
-# 这个文件实现了基于JWT（JSON Web Token）的认证机制，主要用于对API请求进行身份验证。通过JWT令牌，系统可以确保用户的身份，并授权用户访问相应的资源。文件中的功能包括解析JWT令牌、校验令牌是否有效、并在某些情况下处理刷新令牌的逻辑。
-
 # 函数及类描述
 # _get_current_auth_context
 # 描述:

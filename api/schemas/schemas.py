@@ -781,6 +781,13 @@ class ErrorSource(str, Enum):
 # request_mobile: 移动端请求事件。
 # error_mobile: 移动端错误事件。
 # swipe_mobile: 移动端滑动事件。
+
+# 普通枚举类（不继承 str）：枚举成员是枚举对象，不能直接和字符串比较，必须通过枚举成员的 .value 属性来获取其对应的字符串值。
+# 继承自 str 的枚举类：枚举成员既是枚举对象，同时也可以作为字符串使用，因此可以直接和字符串进行比较。
+# 如何判断是否继承 str？
+# 如果 继承了 str，那么枚举成员既可以作为枚举类型，也可以直接作为字符串。
+# 如果 没有继承 str，你只能通过枚举成员的 .value 属性来访问它们的字符串值。
+
 class EventType(str, Enum):
     click = "click"
     input = "input"

@@ -1,7 +1,8 @@
 # Assist协助
 # 这段代码主要提供了与“Assist”服务进行交互的多种功能，
 # 包括获取实时会话、生成代理令牌、检查会话存在性、以及处理与 EFS（Elastic File System）相关的文件路径和权限等操作。
-# “Assist”服务通常是指一个提供实时支持、监控、或协作功能的服务或平台。具体到这段代码中，“Assist”服务似乎是一个用于实时监控或帮助用户会话的后台服务，可能与应用程序中的实时用户交互或会话跟踪有关
+# “Assist”服务通常是指一个提供实时支持、监控、或协作功能的服务或平台。
+# 具体到这段代码中，“Assist”服务似乎是一个用于实时监控或帮助用户会话的后台服务，可能与应用程序中的实时用户交互或会话跟踪有关
 # 检查文件是否可读。
 from os import access, R_OK  # access 是 os 模块中的一个函数，用于检查指定路径的文件或目录是否具有特定的访问权限 它的常见用法是验证文件是否可读、可写、或可执行。
 from os.path import exists as path_exists, getsize
@@ -33,7 +34,6 @@ SESSION_PROJECTION_COLS = """s.project_id,
                            s.user_anonymous_id,
                            s.platform
                            """
-
 
 # 功能: 获取指定用户在项目中的实时会话。
 # 参数:
