@@ -9,12 +9,12 @@ function doHeavyStuffAAAA() {
 }
 
 export default function MemoryCrushButton() {
-  return (
-  	<button  
-	  	style={{background:'darkgreen', color: 'purple'}} 
-	  	onClick={doHeavyStuffAAAA}
-	  >
-	  	{"Eat Memory" }
-  	</button>
-  );
+	return (
+		<button
+			style={{ background: 'darkgreen', color: 'purple' }}
+			onClick={doHeavyStuffAAAA}
+		>
+			{"Eat Memory"}
+		</button>
+	);
 }

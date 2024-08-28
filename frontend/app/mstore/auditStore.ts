@@ -14,7 +14,7 @@ export default class AuditStore {
     searchQuery: string = '';
     isLoading: boolean = false;
     order: string = 'desc';
-    period: Period|null = Period({ rangeName: LAST_7_DAYS })
+    period: Period | null = Period({ rangeName: LAST_7_DAYS })
 
     constructor() {
         makeAutoObservable(this, {

@@ -1,8 +1,8 @@
-import {MOUSE_TRAIL} from "App/constants/storageKeys";
+import { MOUSE_TRAIL } from "App/constants/storageKeys";
 import ListWalker from 'Player/common/ListWalker';
 import MouseTrail, { SwipeEvent } from 'Player/web/addons/MouseTrail';
-import type {IosClickEvent, IosSwipeEvent} from 'Player/web/messages';
-import {MType} from "Player/web/messages";
+import type { IosClickEvent, IosSwipeEvent } from 'Player/web/messages';
+import { MType } from "Player/web/messages";
 import type Screen from 'Player/web/Screen/Screen';
 
 export default class TouchManager extends ListWalker<IosClickEvent | IosSwipeEvent> {

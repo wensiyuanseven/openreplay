@@ -10,7 +10,7 @@ import (
 	"time"
 
 	config "openreplay/backend/internal/config/imagestorage"
-	"openreplay/backend/internal/screenshot-handler"
+	screenshot_handler "openreplay/backend/internal/screenshot-handler"
 	"openreplay/backend/pkg/logger"
 	"openreplay/backend/pkg/messages"
 	"openreplay/backend/pkg/metrics"

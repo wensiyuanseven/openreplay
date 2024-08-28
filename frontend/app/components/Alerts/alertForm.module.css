@@ -13,13 +13,16 @@
   &::-webkit-scrollbar-thumb {
     background: transparent;
   }
+
   &::-webkit-scrollbar-track {
     background: transparent;
   }
+
   &:hover {
     &::-webkit-scrollbar-track {
       background: #f3f3f3;
     }
+
     &::-webkit-scrollbar-thumb {
       background: $gray-medium;
     }

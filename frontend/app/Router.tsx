@@ -1,25 +1,25 @@
-import React, {useEffect, useRef} from 'react';
-import {withRouter, RouteComponentProps} from 'react-router-dom';
-import {connect, ConnectedProps} from 'react-redux';
-import {Loader} from 'UI';
-import {fetchUserInfo, setJwt} from 'Duck/user';
-import {fetchList as fetchSiteList} from 'Duck/site';
-import {withStore} from 'App/mstore';
-import {Map} from 'immutable';
+import React, { useEffect, useRef } from 'react';
+import { withRouter, RouteComponentProps } from 'react-router-dom';
+import { connect, ConnectedProps } from 'react-redux';
+import { Loader } from 'UI';
+import { fetchUserInfo, setJwt } from 'Duck/user';
+import { fetchList as fetchSiteList } from 'Duck/site';
+import { withStore } from 'App/mstore';
+import { Map } from 'immutable';
 
 import * as routes from './routes';
-import {fetchTenants} from 'Duck/user';
-import {setSessionPath} from 'Duck/sessions';
-import {ModalProvider} from 'Components/Modal';
-import {GLOBAL_DESTINATION_PATH, IFRAME, JWT_PARAM} from 'App/constants/storageKeys';
+import { fetchTenants } from 'Duck/user';
+import { setSessionPath } from 'Duck/sessions';
+import { ModalProvider } from 'Components/Modal';
+import { GLOBAL_DESTINATION_PATH, IFRAME, JWT_PARAM } from 'App/constants/storageKeys';
 import PublicRoutes from 'App/PublicRoutes';
 import Layout from 'App/layout/Layout';
-import {fetchListActive as fetchMetadata} from 'Duck/customField';
-import {init as initSite} from 'Duck/site';
+import { fetchListActive as fetchMetadata } from 'Duck/customField';
+import { init as initSite } from 'Duck/site';
 import PrivateRoutes from 'App/PrivateRoutes';
-import {checkParam} from 'App/utils';
+import { checkParam } from 'App/utils';
 import IFrameRoutes from 'App/IFrameRoutes';
-import {ModalProvider as NewModalProvider} from 'Components/ModalContext';
+import { ModalProvider as NewModalProvider } from 'Components/ModalContext';
 
 interface RouterProps extends RouteComponentProps, ConnectedProps<typeof connector> {
     isLoggedIn: boolean;
@@ -52,7 +52,7 @@ const Router: React.FC<RouterProps> = (props) => {
         fetchUserInfo,
         fetchSiteList,
         history,
-        match: {params: {siteId: siteIdFromPath}},
+        match: { params: { siteId: siteIdFromPath } },
         setSessionPath,
     } = props;
     const [isIframe, setIsIframe] = React.useState(false);
@@ -143,7 +143,7 @@ const Router: React.FC<RouterProps> = (props) => {
         location.pathname.includes('/assist/') || location.pathname.includes('multiview');
 
     if (isIframe) {
-        return <IFrameRoutes isJwt={isJwt} isLoggedIn={isLoggedIn} loading={loading}/>;
+        return <IFrameRoutes isJwt={isJwt} isLoggedIn={isLoggedIn} loading={loading} />;
     }
 
     return isLoggedIn ? (
@@ -151,12 +151,12 @@ const Router: React.FC<RouterProps> = (props) => {
             <ModalProvider>
                 <Loader loading={loading || !siteId} className='flex-1'>
                     <Layout hideHeader={hideHeader} siteId={siteId}>
-                        <PrivateRoutes/>
+                        <PrivateRoutes />
                     </Layout>
                 </Loader>
             </ModalProvider>
         </NewModalProvider>
-    ) : <PublicRoutes/>;
+    ) : <PublicRoutes />;
 };
 
 const mapStateToProps = (state: Map<string, any>) => {

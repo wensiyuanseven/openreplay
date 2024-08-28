@@ -6,7 +6,7 @@
 // 这是一个 Cypress 插件库，cypress-image-snapshot 用于实现视觉回归测试（Visual Regression Testing），它可以捕捉和比较测试期间应用的 UI 截图，确保页面或组件在 UI 上没有意外的变化。
 // addMatchImageSnapshotPlugin 方法会把这个插件集成到 Cypress 中，用于在测试中自动化截图和比较操作。
 import { defineConfig } from "cypress";
-import {addMatchImageSnapshotPlugin} from 'cypress-image-snapshot/plugin';
+import { addMatchImageSnapshotPlugin } from 'cypress-image-snapshot/plugin';
 
 const data = {}
 
@@ -18,15 +18,15 @@ export default defineConfig({
     setupNodeEvents(on, config) {
       // implement node event listeners here
       addMatchImageSnapshotPlugin(on, config)
-        on('task', {
-          setValue({key, value}) {
-            data[key] = value
-            return null
-          },
-          getValue(key) {
-            return data[key] || null
-          },
-        })
+      on('task', {
+        setValue({ key, value }) {
+          data[key] = value
+          return null
+        },
+        getValue(key) {
+          return data[key] || null
+        },
+      })
     },
   }
 });

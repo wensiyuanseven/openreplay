@@ -1,39 +1,39 @@
-import React, {useEffect} from 'react';
-import {Form, Input, SegmentSelection, Checkbox, Icon} from 'UI';
-import {alertConditions as conditions} from 'App/constants';
+import React, { useEffect } from 'react';
+import { Form, Input, SegmentSelection, Checkbox, Icon } from 'UI';
+import { alertConditions as conditions } from 'App/constants';
 import stl from './alertForm.module.css';
 import DropdownChips from './DropdownChips';
-import {validateEmail} from 'App/validate';
+import { validateEmail } from 'App/validate';
 import cn from 'classnames';
-import {useStore} from 'App/mstore'
-import {observer} from 'mobx-react-lite'
+import { useStore } from 'App/mstore'
+import { observer } from 'mobx-react-lite'
 import Select from 'Shared/Select';
-import {Button} from "antd";
+import { Button } from "antd";
 
 const thresholdOptions = [
-    {label: '15 minutes', value: 15},
-    {label: '30 minutes', value: 30},
-    {label: '1 hour', value: 60},
-    {label: '2 hours', value: 120},
-    {label: '4 hours', value: 240},
-    {label: '1 day', value: 1440},
+    { label: '15 minutes', value: 15 },
+    { label: '30 minutes', value: 30 },
+    { label: '1 hour', value: 60 },
+    { label: '2 hours', value: 120 },
+    { label: '4 hours', value: 240 },
+    { label: '1 day', value: 1440 },
 ];
 
 const changeOptions = [
-    {label: 'change', value: 'change'},
-    {label: '% change', value: 'percent'},
+    { label: 'change', value: 'change' },
+    { label: '% change', value: 'percent' },
 ];
 
-const Circle = ({text}) => (
+const Circle = ({ text }) => (
     <div className="circle mr-4 w-6 h-6 rounded-full bg-gray-light flex items-center justify-center">
         {text}
     </div>
 );
 
-const Section = ({index, title, description, content}) => (
+const Section = ({ index, title, description, content }) => (
     <div className="w-full">
         <div className="flex items-start">
-            <Circle text={index}/>
+            <Circle text={index} />
             <div>
                 <span className="font-medium">{title}</span>
                 {description && <div className="text-sm color-gray-medium">{description}</div>}
@@ -50,9 +50,9 @@ function AlertForm(props) {
         msTeamsChannels,
         webhooks,
         onDelete,
-        style = {height: "calc('100vh - 40px')"},
+        style = { height: "calc('100vh - 40px')" },
     } = props;
-    const {alertsStore} = useStore()
+    const { alertsStore } = useStore()
     const {
         triggerOptions,
         loading,
@@ -60,22 +60,22 @@ function AlertForm(props) {
     const instance = alertsStore.instance
     const deleting = loading
 
-    const write = ({target: {value, name}}) => alertsStore.edit({[name]: value});
-    const writeOption = (e, {name, value}) => alertsStore.edit({[name]: value.value});
-    const onChangeCheck = ({target: {checked, name}}) => alertsStore.edit({[name]: checked});
+    const write = ({ target: { value, name } }) => alertsStore.edit({ [name]: value });
+    const writeOption = (e, { name, value }) => alertsStore.edit({ [name]: value.value });
+    const onChangeCheck = ({ target: { checked, name } }) => alertsStore.edit({ [name]: checked });
 
     useEffect(() => {
         void alertsStore.fetchTriggerOptions();
     }, []);
 
-    const writeQueryOption = (e, {name, value}) => {
-        const {query} = instance;
-        alertsStore.edit({query: {...query, [name]: value}});
+    const writeQueryOption = (e, { name, value }) => {
+        const { query } = instance;
+        alertsStore.edit({ query: { ...query, [name]: value } });
     };
 
-    const writeQuery = ({target: {value, name}}) => {
-        const {query} = instance;
-        alertsStore.edit({query: {...query, [name]: value}});
+    const writeQuery = ({ target: { value, name } }) => {
+        const { query } = instance;
+        alertsStore.edit({ query: { ...query, [name]: value } });
     };
 
     const metric =
@@ -97,13 +97,13 @@ function AlertForm(props) {
                     autoFocus={true}
                     className="text-lg border border-gray-light rounded w-full"
                     name="name"
-                    style={{fontSize: '18px', padding: '10px', fontWeight: '600'}}
+                    style={{ fontSize: '18px', padding: '10px', fontWeight: '600' }}
                     value={instance && instance.name}
                     onChange={write}
                     placeholder="Untiltled Alert"
                     id="name-field"
                 />
-                <div className="mb-8"/>
+                <div className="mb-8" />
                 <Section
                     index="1"
                     title={'What kind of alert do you want to set?'}
@@ -113,11 +113,11 @@ function AlertForm(props) {
                                 primary
                                 name="detectionMethod"
                                 className="my-3"
-                                onSelect={(e, {name, value}) => alertsStore.edit({[name]: value})}
-                                value={{value: instance.detectionMethod}}
+                                onSelect={(e, { name, value }) => alertsStore.edit({ [name]: value })}
+                                value={{ value: instance.detectionMethod }}
                                 list={[
-                                    {name: 'Threshold', value: 'threshold'},
-                                    {name: 'Change', value: 'change'},
+                                    { name: 'Threshold', value: 'threshold' },
+                                    { name: 'Change', value: 'change' },
                                 ]}
                             />
                             <div className="text-sm color-gray-medium">
@@ -126,12 +126,12 @@ function AlertForm(props) {
                                 {!isThreshold &&
                                     'Eg. Alert me if % change of memory.avg is greater than 10% over the past 4 hours compared to the previous 4 hours.'}
                             </div>
-                            <div className="my-4"/>
+                            <div className="my-4" />
                         </div>
                     }
                 />
 
-                <hr className="my-8"/>
+                <hr className="my-8" />
 
                 <Section
                     index="2"
@@ -147,7 +147,7 @@ function AlertForm(props) {
                                         options={changeOptions}
                                         name="change"
                                         defaultValue={instance.change}
-                                        onChange={({value}) => writeOption(null, {name: 'change', value})}
+                                        onChange={({ value }) => writeOption(null, { name: 'change', value })}
                                         id="change-dropdown"
                                     />
                                 </div>
@@ -165,8 +165,8 @@ function AlertForm(props) {
                                     name="left"
                                     value={triggerOptions.find((i) => i.value === instance.query.left)}
                                     // onChange={ writeQueryOption }
-                                    onChange={({value}) =>
-                                        writeQueryOption(null, {name: 'left', value: value.value})
+                                    onChange={({ value }) =>
+                                        writeQueryOption(null, { name: 'left', value: value.value })
                                     }
                                 />
                             </div>
@@ -180,15 +180,15 @@ function AlertForm(props) {
                                         name="operator"
                                         defaultValue={instance.query.operator}
                                         // onChange={ writeQueryOption }
-                                        onChange={({value}) =>
-                                            writeQueryOption(null, {name: 'operator', value: value.value})
+                                        onChange={({ value }) =>
+                                            writeQueryOption(null, { name: 'operator', value: value.value })
                                         }
                                     />
                                     {unit && (
                                         <>
                                             <Input
                                                 className="px-4"
-                                                style={{marginRight: '31px'}}
+                                                style={{ marginRight: '31px' }}
                                                 // label={{ basic: true, content: unit }}
                                                 // labelPosition='right'
                                                 name="right"
@@ -221,7 +221,7 @@ function AlertForm(props) {
                                     name="currentPeriod"
                                     defaultValue={instance.currentPeriod}
                                     // onChange={ writeOption }
-                                    onChange={({value}) => writeOption(null, {name: 'currentPeriod', value})}
+                                    onChange={({ value }) => writeOption(null, { name: 'currentPeriod', value })}
                                 />
                             </div>
                             {!isThreshold && (
@@ -236,7 +236,7 @@ function AlertForm(props) {
                                         name="previousPeriod"
                                         defaultValue={instance.previousPeriod}
                                         // onChange={ writeOption }
-                                        onChange={({value}) => writeOption(null, {name: 'previousPeriod', value})}
+                                        onChange={({ value }) => writeOption(null, { name: 'previousPeriod', value })}
                                     />
                                 </div>
                             )}
@@ -244,7 +244,7 @@ function AlertForm(props) {
                     }
                 />
 
-                <hr className="my-8"/>
+                <hr className="my-8" />
 
                 <Section
                     index="3"
@@ -295,7 +295,7 @@ function AlertForm(props) {
                                             selected={instance.slackInput}
                                             options={slackChannels}
                                             placeholder="Select Channel"
-                                            onChange={(selected) => alertsStore.edit({slackInput: selected})}
+                                            onChange={(selected) => alertsStore.edit({ slackInput: selected })}
                                         />
                                     </div>
                                 </div>
@@ -309,7 +309,7 @@ function AlertForm(props) {
                                             selected={instance.msteamsInput}
                                             options={msTeamsChannels}
                                             placeholder="Select Channel"
-                                            onChange={(selected) => alertsStore.edit({msteamsInput: selected})}
+                                            onChange={(selected) => alertsStore.edit({ msteamsInput: selected })}
                                         />
                                     </div>
                                 </div>
@@ -324,7 +324,7 @@ function AlertForm(props) {
                                             validate={validateEmail}
                                             selected={instance.emailInput}
                                             placeholder="Type and press Enter key"
-                                            onChange={(selected) => alertsStore.edit({emailInput: selected})}
+                                            onChange={(selected) => alertsStore.edit({ emailInput: selected })}
                                         />
                                     </div>
                                 </div>
@@ -338,7 +338,7 @@ function AlertForm(props) {
                                         selected={instance.webhookInput}
                                         options={webhooks}
                                         placeholder="Select Webhook"
-                                        onChange={(selected) => alertsStore.edit({webhookInput: selected})}
+                                        onChange={(selected) => alertsStore.edit({ webhookInput: selected })}
                                     />
                                 </div>
                             )}
@@ -359,7 +359,7 @@ function AlertForm(props) {
                     >
                         {instance.exists() ? 'Update' : 'Create'}
                     </Button>
-                    <div className="mx-1"/>
+                    <div className="mx-1" />
                     <Button onClick={props.onClose}>Cancel</Button>
                 </div>
                 <div>
@@ -372,7 +372,7 @@ function AlertForm(props) {
                             onClick={() => onDelete(instance)}
                             id="trash-button"
                         >
-                            <Icon name="trash" color="gray-medium" size="18"/>
+                            <Icon name="trash" color="gray-medium" size="18" />
                         </Button>
                     )}
                 </div>

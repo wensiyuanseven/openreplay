@@ -4,6 +4,7 @@ import StackEvent from './stackEvent';
 import SessionError, { IError } from './error';
 import Issue, { IIssue, types as issueTypes } from './issue';
 import { Note } from 'App/services/NotesService';
+
 import { toJS } from 'mobx';
 
 const HASH_MOD = 1610612741;

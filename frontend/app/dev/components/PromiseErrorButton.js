@@ -5,12 +5,12 @@ function fetchWrong() {
 }
 
 export default function PromiseErrorButton() {
-  return (
-  	<button 
-  		onClick={fetchWrong}
-  		style={{background:'purple', color: 'white'}}
-  	>
-  		{"Zatrollit' lalku"}
-  	</button>
-  );
+	return (
+		<button
+			onClick={fetchWrong}
+			style={{ background: 'purple', color: 'white' }}
+		>
+			{"Zatrollit' lalku"}
+		</button>
+	);
 }

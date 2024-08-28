@@ -1,6 +1,11 @@
 // @ts-nocheck
+// JSBI 是一个 JavaScript 库，用于处理大整数（BigInt）运算。它解决了在 JavaScript 中处理超出 Number 类型精度限制的大整数的问题。
+// JSBI 库的主要用途是提供对大整数的精确运算支持，同时确保在不支持原生 BigInt 的环境中也能正常工作。
 import JSBI from 'jsbi';
+// chroma-js 提供了简单且强大的工具来处理颜色，使得复杂的颜色操作变得直观和高效。
 import chroma from 'chroma-js';
+// html-to-image 是一个 JavaScript 库，用于将 HTML 元素转换为图像（例如 PNG 或 JPEG 格式）。
+// 这个库非常适合在网页上捕获和导出某个部分的内容作为图像，比如导出数据可视化图表、用户生成的内容或设计作品等。
 import * as htmlToImage from 'html-to-image';
 import { SESSION_FILTER } from 'App/constants/storageKeys';
 
@@ -396,7 +401,7 @@ export function millisToMinutesAndSeconds(millis: any) {
 
 export function simpleThrottle(func: (...args: any[]) => void, limit: number): (...args: any[]) => void {
   let inThrottle;
-  return function() {
+  return function () {
     const args = arguments;
     const context = this;
     if (!inThrottle) {

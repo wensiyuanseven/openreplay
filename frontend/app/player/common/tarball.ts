@@ -1,3 +1,5 @@
+// js-untar 是一个 JavaScript 库，用于在浏览器或 Node.js 环境中解压缩 .tar 文件  
+// js-untar 可以解析 .tar 文件并提取其中的内容。
 import untar, { TarFile } from 'js-untar';
 
 const unpackTar = (data: Uint8Array): Promise<TarFile[]> => {

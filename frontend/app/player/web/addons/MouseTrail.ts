@@ -11,7 +11,7 @@ export type SwipeEvent = { x: number; y: number; direction: 'up' | 'down' | 'lef
 export default class MouseTrail {
   public isActive = true;
   public context: CanvasRenderingContext2D;
-  private dimensions = {width: 0, height: 0};
+  private dimensions = { width: 0, height: 0 };
   private readonly lineDuration: number;
   private points: Point[] = [];
 
@@ -116,7 +116,7 @@ export default class MouseTrail {
 type Coords = { x: number; y: number };
 
 class Point {
-  constructor(public x: number, public y: number, public lifetime?: number) {}
+  constructor(public x: number, public y: number, public lifetime?: number) { }
 
   static distance(a: Coords, b: Coords) {
     const dx = a.x - b.x;

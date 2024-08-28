@@ -1,5 +1,5 @@
-import React, {createContext, useContext, useState, ReactNode} from 'react';
-import {Drawer} from 'antd';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { Drawer } from 'antd';
 
 interface ModalConfig {
     title?: string;
@@ -27,7 +27,7 @@ const ModalContext = createContext<ModalContextType>({
 
 export const useModal = () => useContext(ModalContext);
 
-export const ModalProvider = ({children}: { children: ReactNode }) => {
+export const ModalProvider = ({ children }: { children: ReactNode }) => {
     const [showModal, setShowModal] = useState(false);
     const [modalContent, setModalContent] = useState<ReactNode>(null);
     const [modalConfig, setModalConfig] = useState<ModalConfig>(defaultConfig);
@@ -47,7 +47,7 @@ export const ModalProvider = ({children}: { children: ReactNode }) => {
     };
 
     return (
-        <ModalContext.Provider value={{openModal, closeModal}}>
+        <ModalContext.Provider value={{ openModal, closeModal }}>
             {children}
             <Drawer
                 open={showModal}

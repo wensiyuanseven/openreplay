@@ -42,7 +42,7 @@ function AssistSearchField(props: Props) {
         <SessionSearchField />
       </div>
       {props.isEnterprise && props.modules.includes(MODULES.OFFLINE_RECORDINGS)
-       ? <Button type="primary" ghost onClick={showRecords}>Training Videos</Button> : null
+        ? <Button type="primary" ghost onClick={showRecords}>Training Videos</Button> : null
       }
       <Button type="primary" ghost onClick={showStats} disabled={props.modules.includes(MODULES.ASSIST_STATS) || props.modules.includes(MODULES.ASSIST)}>Co-Browsing Reports</Button>
       <Button

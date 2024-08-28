@@ -1,21 +1,21 @@
-import {makeAutoObservable, runInAction} from 'mobx';
+import { makeAutoObservable, runInAction } from 'mobx';
 import FilterSeries from './filterSeries';
-import {DateTime} from 'luxon';
+import { DateTime } from 'luxon';
 import Session from 'App/mstore/types/session';
 import Funnelissue from 'App/mstore/types/funnelIssue';
-import {issueOptions, issueCategories, issueCategoriesMap, pathAnalysisEvents} from 'App/constants/filterOptions';
-import {FilterKey} from 'Types/filter/filterType';
-import Period, {LAST_24_HOURS} from 'Types/app/period';
+import { issueOptions, issueCategories, issueCategoriesMap, pathAnalysisEvents } from 'App/constants/filterOptions';
+import { FilterKey } from 'Types/filter/filterType';
+import Period, { LAST_24_HOURS } from 'Types/app/period';
 import Funnel from '../types/funnel';
-import {metricService} from 'App/services';
-import {FUNNEL, INSIGHTS, TABLE, USER_PATH, WEB_VITALS} from 'App/constants/card';
+import { metricService } from 'App/services';
+import { FUNNEL, INSIGHTS, TABLE, USER_PATH, WEB_VITALS } from 'App/constants/card';
 import Error from '../types/error';
-import {getChartFormatter} from 'Types/dashboard/helper';
+import { getChartFormatter } from 'Types/dashboard/helper';
 import FilterItem from './filterItem';
-import {filtersMap} from 'Types/filter/newFilter';
+import { filtersMap } from 'Types/filter/newFilter';
 import Issue from '../types/issue';
-import {durationFormatted} from 'App/date';
-import {SessionsByRow} from "./sessionsCardData";
+import { durationFormatted } from 'App/date';
+import { SessionsByRow } from "./sessionsCardData";
 
 export class InsightIssue {
     icon: string;
@@ -85,13 +85,13 @@ export default class Widget {
     page: number = 1;
     limit: number = 20;
     thumbnail?: string;
-    params: any = {density: 70};
+    params: any = { density: 70 };
     startType: string = 'start';
     startPoint: FilterItem = new FilterItem(filtersMap[FilterKey.LOCATION]);
     excludes: FilterItem[] = [];
     hideExcess?: boolean = false;
 
-    period: Record<string, any> = Period({rangeName: LAST_24_HOURS}); // temp value in detail view
+    period: Record<string, any> = Period({ rangeName: LAST_24_HOURS }); // temp value in detail view
     hasChanged: boolean = false;
 
     position: number = 0;
@@ -136,7 +136,7 @@ export default class Widget {
     }
 
     createSeries(filters: Record<string, any>) {
-        const series = new FilterSeries().fromData({filter: {filters}, name: 'AI Query', seriesId: 1})
+        const series = new FilterSeries().fromData({ filter: { filters }, name: 'AI Query', seriesId: 1 })
         this.setSeries([series])
     }
 
@@ -229,12 +229,12 @@ export default class Widget {
                 ...this.config,
                 col:
                     this.metricType === FUNNEL ||
-                    this.metricOf === FilterKey.ERRORS ||
-                    this.metricOf === FilterKey.SESSIONS ||
-                    this.metricOf === FilterKey.SLOWEST_RESOURCES ||
-                    this.metricOf === FilterKey.MISSING_RESOURCES ||
-                    this.metricOf === FilterKey.PAGES_RESPONSE_TIME_DISTRIBUTION ||
-                    this.metricType === USER_PATH
+                        this.metricOf === FilterKey.ERRORS ||
+                        this.metricOf === FilterKey.SESSIONS ||
+                        this.metricOf === FilterKey.SLOWEST_RESOURCES ||
+                        this.metricOf === FilterKey.MISSING_RESOURCES ||
+                        this.metricOf === FilterKey.PAGES_RESPONSE_TIME_DISTRIBUTION ||
+                        this.metricType === USER_PATH
                         ? 4
                         : 2
             }
@@ -282,7 +282,7 @@ export default class Widget {
 
 
     setData(data: any, period: any) {
-        const _data: any = {...data};
+        const _data: any = { ...data };
 
         if (this.metricType === USER_PATH) {
             const _data = processData(data);
@@ -470,5 +470,5 @@ const processData = (data: Data): {
         return aIndex - bIndex;
     });
 
-    return {nodes: sortedNodes, links};
+    return { nodes: sortedNodes, links };
 };

@@ -1,5 +1,8 @@
 import React, { lazy, Suspense } from 'react';
+// pass
 import { Switch, Route, Redirect } from 'react-router-dom';
+// connect 是 react-redux 库中的一个高阶组件（HOC），用于将 React 组件与 Redux 的状态和动作（actions）连接起来。
+// 通过 connect，你可以将 Redux 的 state 和 dispatch 注入到 React 组件的 props 中，从而在组件中访问 Redux 的状态和触发动作。
 import { connect } from 'react-redux';
 import { Loader } from 'UI';
 import withSiteIdUpdater from 'HOCs/withSiteIdUpdater';
