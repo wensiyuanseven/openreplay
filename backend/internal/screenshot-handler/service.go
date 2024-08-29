@@ -1,3 +1,6 @@
+// 功能: 处理截图的逻辑实现，可能包括截图捕捉和存储。
+// 注意点: 确保截图处理的高效性和准确性，处理好图像格式和大小。
+// 难点: 实现高效的截图处理和管理策略，确保图像的安全性和隐私保护。
 package screenshot_handler
 
 import (
@@ -6,16 +9,17 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"openreplay/backend/pkg/logger"
-	"openreplay/backend/pkg/objectstorage"
-	"openreplay/backend/pkg/pool"
 	"os"
 	"os/exec"
 	"strconv"
 	"time"
 
 	gzip "github.com/klauspost/pgzip"
+
 	config "openreplay/backend/internal/config/imagestorage"
+	"openreplay/backend/pkg/logger"
+	"openreplay/backend/pkg/objectstorage"
+	"openreplay/backend/pkg/pool"
 )
 
 type saveTask struct {

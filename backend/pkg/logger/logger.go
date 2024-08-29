@@ -1,11 +1,15 @@
+// 功能: 日志记录工具库，支持不同级别的日志记录。
+// 注意点: 确保日志记录的高效性和准确性，处理好日志的格式和存储。
+// 难点: 实现高性能的日志记录和管理机制，处理大规模日志的存储和检索。
 package logger
 
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"os"
 )
 
 type Logger interface {
