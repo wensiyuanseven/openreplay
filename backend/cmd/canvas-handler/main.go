@@ -1,3 +1,6 @@
+// 功能: 处理图形和画布操作的服务入口点，可能涉及图形渲染、用户输入处理等。
+// 注意点: 确保画布操作的高性能和低延迟，尤其是在实时互动应用中。处理好不同图形格式和兼容性问题。
+// 难点: 实现高效的图形渲染算法，尤其是当需要处理大量图形元素或复杂的用户交互时。还要注意内存管理和渲染性能。
 package main
 
 import (
@@ -7,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"openreplay/backend/internal/canvas-handler"
+	canvas_handler "openreplay/backend/internal/canvas-handler"
 	config "openreplay/backend/internal/config/canvas-handler"
 	"openreplay/backend/pkg/logger"
 	"openreplay/backend/pkg/messages"
