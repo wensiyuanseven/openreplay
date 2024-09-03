@@ -34,17 +34,17 @@ const isFrustrationEvent = (evt: any): boolean => {
 };
 
 const Event: React.FC<Props> = ({
-                                  event,
-                                  selected = false,
-                                  isCurrent = false,
-                                  onClick,
-                                  showSelection = false,
-                                  showLoadInfo,
-                                  toggleLoadInfo,
-                                  isRed = false,
-                                  presentInSearch = false,
-                                  whiteBg
-                                }) => {
+  event,
+  selected = false,
+  isCurrent = false,
+  onClick,
+  showSelection = false,
+  showLoadInfo,
+  toggleLoadInfo,
+  isRed = false,
+  presentInSearch = false,
+  whiteBg
+}) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const isLocation = event.type === TYPES.LOCATION;

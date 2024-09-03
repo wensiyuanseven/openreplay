@@ -86,5 +86,28 @@ class _LocalStream {
     this.stream.getTracks().forEach((t) => t.stop());
   }
 }
+// 类的兼容性：TypeScript 是结构化类型系统（structural typing），这意味着两个类型如果结构上兼容，那么它们可以互相赋值。所以，如果 _LocalStreaaaa 类的结构与 _LocalStream 相同或兼容（比如它实现了 _LocalStream 的所有方法和属性），那么可以将 new _LocalStreaaaa() 赋值给类型为 LocalStream 的变量。
+// class _LocalStream {
+//   start() {
+//       console.log("Stream started");
+//   }
+//   stop() {
+//       console.log("Stream stopped");
+//   }
+// }
 
+// class _LocalStreaaaa {
+//   start() {
+//       console.log("New Stream started");
+//   }
+//   stop() {
+//       console.log("New Stream stopped");
+//   }
+// }
+
+// type LocalStream = InstanceType<typeof _LocalStream>;
+// 是一种高级类型定义方式，用来基于现有的类或构造函数推导出其实例类型
+// 这种方式在需要灵活处理类型推断或创建基于类实例的类型时非常有用。
+// InstanceType<T> 是 TypeScript 中的一个内置泛型类型，它用来获取某个构造函数类型 T 所创建的实例的类型。
+// 当你传入 typeof _LocalStream 时，InstanceType 会解析出 _LocalStream 这个类或构造函数所生成的实例的类型。
 export type LocalStream = InstanceType<typeof _LocalStream>;

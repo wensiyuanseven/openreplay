@@ -8,12 +8,12 @@ interface ExampleProps {
     onCard: (card: string) => void;
 }
 
-const PerformanceMonitoring: React.FC<ExampleProps> = ({onCard}) => (
+const PerformanceMonitoring: React.FC<ExampleProps> = ({ onCard }) => (
     <>
-        <PerfBreakdown onCard={onCard}/>
-        <SlowestDomain onCard={onCard}/>
-        <SessionsByErrors onCard={onCard}/>
-        <SessionsByIssues onCard={onCard}/>
+        <PerfBreakdown onCard={onCard} />
+        <SlowestDomain onCard={onCard} />
+        <SessionsByErrors onCard={onCard} />
+        <SessionsByIssues onCard={onCard} />
     </>
 );
 

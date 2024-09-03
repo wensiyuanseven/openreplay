@@ -14,12 +14,12 @@ interface NewDashboardModalProps {
 }
 
 const NewDashboardModal: React.FC<NewDashboardModalProps> = ({
-                                                               onClose,
-                                                               open,
-                                                               isAddingFromLibrary = false,
-                                                               isEnterprise = false,
-                                                               isMobile = false
-                                                             }) => {
+  onClose,
+  open,
+  isAddingFromLibrary = false,
+  isEnterprise = false,
+  isMobile = false
+}) => {
   const [step, setStep] = React.useState<number>(0);
   const [selectedCategory, setSelectedCategory] = React.useState<string>('product-analytics');
 
@@ -51,12 +51,12 @@ const NewDashboardModal: React.FC<NewDashboardModalProps> = ({
           overflowX: 'hidden'
         }}>
           {step === 0 && <SelectCard onClose={onClose}
-                                     selected={selectedCategory}
-                                     setSelectedCategory={setSelectedCategory}
-                                     onCard={() => setStep(step + 1)}
-                                     isLibrary={isAddingFromLibrary}
-                                     isMobile={isMobile}
-                                     isEnterprise={isEnterprise} />}
+            selected={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
+            onCard={() => setStep(step + 1)}
+            isLibrary={isAddingFromLibrary}
+            isMobile={isMobile}
+            isEnterprise={isEnterprise} />}
           {step === 1 && <CreateCard onBack={() => setStep(0)} />}
         </div>
       </Modal>

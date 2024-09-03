@@ -28,19 +28,19 @@ function MetricTypeIcon({ type }: any) {
 
   return (
     <Tooltip title={<div className="capitalize">{card.title}</div>}>
-      <Avatar src={card.icon && <Icon name={card.icon} size="16" color="tealx" />}  size="small" className="bg-tealx-lightest mr-2" />
+      <Avatar src={card.icon && <Icon name={card.icon} size="16" color="tealx" />} size="small" className="bg-tealx-lightest mr-2" />
     </Tooltip>
   );
 }
 
 const MetricListItem: React.FC<Props> = ({
-                                           metric,
-                                           siteId,
-                                           toggleSelection = () => {
-                                           },
-                                           disableSelection = false,
-                                           renderColumn
-                                         }) => {
+  metric,
+  siteId,
+  toggleSelection = () => {
+  },
+  disableSelection = false,
+  renderColumn
+}) => {
   const history = useHistory();
   const { metricStore } = useStore();
   const [isEdit, setIsEdit] = useState(false);
@@ -176,13 +176,13 @@ const MetricListItem: React.FC<Props> = ({
     case 'options':
       return (
         <>
-        <div className='flex justify-end'>
-          <Dropdown
-            menu={{ items: menuItems, onClick: onMenuClick }}
-            trigger={['click']}
-          >
-            <Button type="text" icon={<MoreOutlined />} />
-          </Dropdown>
+          <div className='flex justify-end'>
+            <Dropdown
+              menu={{ items: menuItems, onClick: onMenuClick }}
+              trigger={['click']}
+            >
+              <Button type="text" icon={<MoreOutlined />} />
+            </Dropdown>
           </div>
           {renderModal()}
         </>

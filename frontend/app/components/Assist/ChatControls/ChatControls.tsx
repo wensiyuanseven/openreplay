@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import stl from './ChatControls.module.css'
 import cn from 'classnames'
 import { Button, Icon } from 'UI'
+// import type 是 TypeScript 中的一种特定语法，用于仅导入类型信息，而不是导入实际的值或模块。
+// 这在 TypeScript 中的类型检查阶段有用，而不会影响到编译后的 JavaScript 代码
 import type { LocalStream } from 'Player';
 
 

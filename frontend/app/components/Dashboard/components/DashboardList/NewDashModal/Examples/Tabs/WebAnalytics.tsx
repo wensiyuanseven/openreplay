@@ -8,12 +8,12 @@ interface ExampleProps {
     onCard: (card: string) => void;
 }
 
-const WebAnalytics: React.FC<ExampleProps> = ({onCard}) => (
+const WebAnalytics: React.FC<ExampleProps> = ({ onCard }) => (
     <>
-        <ByBrowser onCard={onCard}/>
-        <BySystem onCard={onCard}/>
-        <ByCountry onCard={onCard}/>
-        <ByUrl onCard={onCard}/>
+        <ByBrowser onCard={onCard} />
+        <BySystem onCard={onCard} />
+        <ByCountry onCard={onCard} />
+        <ByUrl onCard={onCard} />
     </>
 );
 

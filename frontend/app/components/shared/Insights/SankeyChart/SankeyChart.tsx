@@ -1,8 +1,8 @@
-import React, {useState} from 'react';
-import {Sankey, ResponsiveContainer} from 'recharts';
+import React, { useState } from 'react';
+import { Sankey, ResponsiveContainer } from 'recharts';
 import CustomLink from './CustomLink';
 import CustomNode from './CustomNode';
-import {NoContent, Icon} from 'UI';
+import { NoContent, Icon } from 'UI';
 
 interface Node {
     idd: string;
@@ -31,7 +31,7 @@ interface Props {
     onChartClick?: (filters: any[]) => void;
 }
 
-const SankeyChart: React.FC<Props> = ({data, height = 240, onChartClick}: Props) => {
+const SankeyChart: React.FC<Props> = ({ data, height = 240, onChartClick }: Props) => {
     const [highlightedLinks, setHighlightedLinks] = useState<string[]>([]);
     const [hoveredLinks, setHoveredLinks] = useState<string[]>([]);
 
@@ -56,10 +56,10 @@ const SankeyChart: React.FC<Props> = ({data, height = 240, onChartClick}: Props)
     }
 
     const handleLinkMouseEnter = (linkData: any) => {
-        const {payload} = linkData;
+        const { payload } = linkData;
         const link: any = data.links.find(link => link.id === payload.id);
         const previousLinks: any = findPreviousLinks(link.source).reverse();
-        previousLinks.push({id: payload.id});
+        previousLinks.push({ id: payload.id });
         setHoveredLinks(previousLinks.map((link: any) => link.id));
     };
 
@@ -99,7 +99,7 @@ const SankeyChart: React.FC<Props> = ({data, height = 240, onChartClick}: Props)
 
     return (
         <NoContent
-            style={{paddingTop: '80px'}}
+            style={{ paddingTop: '80px' }}
             show={!data.nodes.length || !data.links.length}
             title={
                 <div className="flex items-center">
@@ -111,14 +111,14 @@ const SankeyChart: React.FC<Props> = ({data, height = 240, onChartClick}: Props)
             <ResponsiveContainer height={height} width='100%'>
                 <Sankey
                     data={data}
-                    node={<CustomNode/>}
+                    node={<CustomNode />}
                     nodePadding={20}
                     sort={true}
                     nodeWidth={4}
                     iterations={128}
                     // linkCurvature={0.9}
                     onClick={clickHandler}
-                    link={({source, target, id, ...linkProps}, index) => (
+                    link={({ source, target, id, ...linkProps }, index) => (
                         <CustomLink
                             {...linkProps}
                             hoveredLinks={hoveredLinks}
@@ -128,12 +128,12 @@ const SankeyChart: React.FC<Props> = ({data, height = 240, onChartClick}: Props)
                             onMouseLeave={() => setHoveredLinks([])}
                         />
                     )}
-                    margin={{right: 130, bottom: 50}}
+                    margin={{ right: 130, bottom: 50 }}
                 >
                     <defs>
                         <linearGradient id={'linkGradient'}>
-                            <stop offset='0%' stopColor='rgba(57, 78, 255, 0.2)'/>
-                            <stop offset='100%' stopColor='rgba(57, 78, 255, 0.2)'/>
+                            <stop offset='0%' stopColor='rgba(57, 78, 255, 0.2)' />
+                            <stop offset='100%' stopColor='rgba(57, 78, 255, 0.2)' />
                         </linearGradient>
                     </defs>
                 </Sankey>

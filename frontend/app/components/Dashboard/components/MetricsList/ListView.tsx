@@ -43,8 +43,8 @@ const ListView: React.FC<Props> = (props: Props) => {
   const totalMessage = (
     <>
       Showing <Text strong>{pagination.pageSize * (pagination.current - 1) + 1}</Text> to <Text
-      strong>{Math.min(pagination.pageSize * pagination.current, list.length)}</Text> of <Text
-      strong>{list.length}</Text> cards
+        strong>{Math.min(pagination.pageSize * pagination.current, list.length)}</Text> of <Text
+          strong>{list.length}</Text> cards
     </>
   );
 

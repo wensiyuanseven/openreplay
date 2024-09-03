@@ -47,14 +47,14 @@ const CustomLink: React.FC<CustomLinkProps> = (props) => {
   };
 
   return (
-      <Layer
-          key={`CustomLink${index}`}
-          onClick={onClick}
-          onMouseEnter={props.onMouseEnter}
-          onMouseLeave={props.onMouseLeave}
-      >
-        <path
-            d={`
+    <Layer
+      key={`CustomLink${index}`}
+      onClick={onClick}
+      onMouseEnter={props.onMouseEnter}
+      onMouseLeave={props.onMouseLeave}
+    >
+      <path
+        d={`
           M${sourceX},${sourceY + linkWidth / 2}
           C${sourceControlX},${sourceY + linkWidth / 2}
             ${targetControlX},${targetY + linkWidth / 2}
@@ -65,17 +65,17 @@ const CustomLink: React.FC<CustomLinkProps> = (props) => {
             ${sourceX},${sourceY - linkWidth / 2}
           Z
         `}
-            fill={isActive ? 'rgba(57, 78, 255, 1)' : (isHover ? 'rgba(57, 78, 255, 0.5)' : fill)}
-            strokeWidth='1'
-            strokeOpacity={props.strokeOpacity}
-            onMouseEnter={() => {
-              setFill('rgba(57, 78, 255, 0.5)');
-            }}
-            onMouseLeave={() => {
-              setFill('url(#linkGradient)');
-            }}
-        />
-      </Layer>
+        fill={isActive ? 'rgba(57, 78, 255, 1)' : (isHover ? 'rgba(57, 78, 255, 0.5)' : fill)}
+        strokeWidth='1'
+        strokeOpacity={props.strokeOpacity}
+        onMouseEnter={() => {
+          setFill('rgba(57, 78, 255, 0.5)');
+        }}
+        onMouseLeave={() => {
+          setFill('url(#linkGradient)');
+        }}
+      />
+    </Layer>
   );
 };
 
