@@ -16,6 +16,7 @@ interface Props {
   errors: any;
 }
 
+// todo泛型
 class TeamsAddForm extends React.PureComponent<Props> {
   componentWillUnmount() {
     this.props.init({});

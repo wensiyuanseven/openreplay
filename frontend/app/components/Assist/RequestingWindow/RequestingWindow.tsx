@@ -4,11 +4,25 @@ import { connect } from 'react-redux';
 import { Button, Loader, Icon } from 'UI';
 import { PlayerContext } from 'App/components/Session/playerContext';
 
+
+// function getWindowType(): WindowType | null {
+//   return WindowType.Call; // 返回 0，但在代码中写作 WindowType.Call
+// }
+// const windowType = getWindowType();
+// if (windowType === WindowType.Call) {
+//   console.log("Window type is Call");
+// } else if (windowType === WindowType.Control) {
+//   console.log("Window type is Control");
+// } else if (windowType === WindowType.Record) {
+//   console.log("Window type is Record");
+// }
 interface Props {
   userDisplayName: string;
+  // 返回值的类型是 WindowType 枚举中的一个值，或者是 null
   getWindowType: () => WindowType | null;
 }
-
+// 在 TypeScript 中，声明的顺序并不限制你如何组织代码。这意味着你可以在接口 Props 中引用一个稍后定义的枚举或类型。
+// 这是因为 TypeScript 编译器会在编译过程中解析整个文件，而不仅仅是按顺序逐行解析。这种设计使得你可以更灵活地组织代码，以便更好地满足可读性和模块化的需求
 export enum WindowType {
   Call,
   Control,

@@ -26,7 +26,7 @@ type Project = {
   projectKey: string;
   sampleRate: number;
 };
-
+// todo
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
 const Sites = ({ loading, sites, user, init }: PropsFromRedux) => {

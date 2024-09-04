@@ -50,7 +50,9 @@ const NewSiteForm = ({
       setSiteId(site.id);
     }
   }, []);
-
+  // todo 合成事件
+  // FormEvent 是 React 中用于处理表单事件的一种类型。
+  // 它是一个由 React 定义的合成事件，用来描述表单元素（如 <form>, <input>, <textarea> 等）触发的事件。FormEvent 可以帮助你在处理表单事件时更好地控制事件对象类型和响应表单交互。
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
 
@@ -98,7 +100,8 @@ const NewSiteForm = ({
       });
     }
   };
-
+  // todo
+  // ChangeEvent 是 React 中用于处理表单元素值变更事件的合成事件类型
   const handleEdit = ({
     target: { name, value },
   }: ChangeEvent<HTMLInputElement>) => {

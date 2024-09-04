@@ -20,18 +20,12 @@ def _get_current_auth_context(request: Request, jwt_payload: dict) -> schemas.Cu
         logger.warning("User not found.")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User not found.")
     request.state.authorizer_identity = "jwt"
-    request.state.currentContext = schemas.CurrentContext(tenantId=jwt_payload.get("tenantId", -1),
-                                                          userId=jwt_payload.get("userId", -1),
-                                                          email=user["email"],
-                                                          role=user["role"],
-                                                          permissions=user["permissions"],
-                                                          serviceAccount=user["serviceAccount"])
+    request.state.currentContext = schemas.CurrentContext(tenantId=jwt_payload.get("tenantId", -1), userId=jwt_payload.get("userId", -1), email=user["email"], role=user["role"], permissions=user["permissions"], serviceAccount=user["serviceAccount"])
     return request.state.currentContext
 
 
 def _allow_access_to_endpoint(request: Request, current_context: schemas.CurrentContext) -> bool:
-    return not current_context.service_account \
-        or request.url.path not in ["/logout", "/api/logout", "/refresh", "/api/refresh"]
+    return not current_context.service_account or request.url.path not in ["/logout", "/api/logout", "/refresh", "/api/refresh"]
 
 
 class JWTAuth(HTTPBearer):
@@ -48,29 +42,19 @@ class JWTAuth(HTTPBearer):
 
             if jwt_payload is None or jwt_payload.get("jti") is None:
                 logger.warning("Null refreshToken's payload, or null JTI.")
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                    detail="Invalid refresh-token or expired refresh-token.")
-            auth_exists = users.refresh_auth_exists(user_id=jwt_payload.get("userId", -1),
-                                                    tenant_id=jwt_payload.get("tenantId", -1),
-                                                    jwt_jti=jwt_payload["jti"])
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid refresh-token or expired refresh-token.")
+            auth_exists = users.refresh_auth_exists(user_id=jwt_payload.get("userId", -1), tenant_id=jwt_payload.get("tenantId", -1), jwt_jti=jwt_payload["jti"])
             if not auth_exists:
                 logger.warning("refreshToken's user not found.")
                 logger.warning(jwt_payload)
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                    detail="Invalid refresh-token or expired refresh-token.")
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid refresh-token or expired refresh-token.")
 
             credentials: HTTPAuthorizationCredentials = await super(JWTAuth, self).__call__(request)
             if credentials:
                 if not credentials.scheme == "Bearer":
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                        detail="Invalid authentication scheme.")
-                old_jwt_payload = authorizers.jwt_authorizer(scheme=credentials.scheme, token=credentials.credentials,
-                                                             leeway=datetime.timedelta(
-                                                                 days=config("JWT_LEEWAY_DAYS", cast=int, default=3)
-                                                             ))
-                if old_jwt_payload is None \
-                        or old_jwt_payload.get("userId") is None \
-                        or old_jwt_payload.get("userId") != jwt_payload.get("userId"):
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid authentication scheme.")
+                old_jwt_payload = authorizers.jwt_authorizer(scheme=credentials.scheme, token=credentials.credentials, leeway=datetime.timedelta(days=config("JWT_LEEWAY_DAYS", cast=int, default=3)))
+                if old_jwt_payload is None or old_jwt_payload.get("userId") is None or old_jwt_payload.get("userId") != jwt_payload.get("userId"):
                     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token or expired token.")
 
                 ctx = _get_current_auth_context(request=request, jwt_payload=jwt_payload)
@@ -82,16 +66,10 @@ class JWTAuth(HTTPBearer):
             credentials: HTTPAuthorizationCredentials = await super(JWTAuth, self).__call__(request)
             if credentials:
                 if not credentials.scheme == "Bearer":
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                        detail="Invalid authentication scheme.")
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid authentication scheme.")
                 jwt_payload = authorizers.jwt_authorizer(scheme=credentials.scheme, token=credentials.credentials)
-                auth_exists = jwt_payload is not None \
-                              and users.auth_exists(user_id=jwt_payload.get("userId", -1),
-                                                    tenant_id=jwt_payload.get("tenantId", -1),
-                                                    jwt_iat=jwt_payload.get("iat", 100))
-                if jwt_payload is None \
-                        or jwt_payload.get("iat") is None or jwt_payload.get("aud") is None \
-                        or not auth_exists:
+                auth_exists = jwt_payload is not None and users.auth_exists(user_id=jwt_payload.get("userId", -1), tenant_id=jwt_payload.get("tenantId", -1), jwt_iat=jwt_payload.get("iat", 100))
+                if jwt_payload is None or jwt_payload.get("iat") is None or jwt_payload.get("aud") is None or not auth_exists:
                     if jwt_payload is not None:
                         logger.debug(jwt_payload)
                         if jwt_payload.get("iat") is None:

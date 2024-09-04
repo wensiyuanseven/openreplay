@@ -59,6 +59,7 @@ function AssistActions({
   userDisplayName,
   agentId,
 }: Props) {
+  //react实现了React.useContext泛型
   // @ts-ignore ???
   const { player, store } = React.useContext<ILivePlayerContext>(PlayerContext);
 

@@ -8,6 +8,15 @@ import Draggable from 'react-draggable';
 import type { LocalStream } from 'Player';
 import { PlayerContext } from 'App/components/Session/playerContext';
 
+// 在 TypeScript 中，当你在代码中使用 MediaStream 时，无需显式地导入它，这是因为 MediaStream 是一个全局定义的类型。
+// TypeScript 自动包含了一些标准的类型定义库，特别是与浏览器环境相关的库，比如 lib.dom.d.ts。
+// 这个文件中包含了浏览器的各种内置对象的类型定义，包括 MediaStream。
+// 具体说明：
+// 全局类型定义：MediaStream 属于浏览器环境下的全局对象。
+// TypeScript 在编译时会自动加载标准库中的类型定义，包括所有的 DOM API 和 Web API 类型。
+// 因此，像 MediaStream 这样常见的接口不需要手动导入就可以直接使用。
+// lib.dom.d.ts：这是 TypeScript 内置的一部分类型定义文件，专门为浏览器提供的 API 定义类型。
+// 例如，MediaStream、Document、Window 等都是在这个文件中定义的。
 export interface Props {
   incomeStream: MediaStream[] | null;
   localStream: LocalStream | null;

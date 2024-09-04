@@ -8,6 +8,7 @@ export enum SessionRecordingStatus {
   Recording
 }
 
+// 
 export interface State {
 	recordingState: SessionRecordingStatus;
   currentTab?: string;

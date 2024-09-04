@@ -9,7 +9,12 @@ import { PASSWORD_POLICY } from 'App/constants';
 
 const ERROR_DOESNT_MATCH = "Passwords don't match";
 const MIN_LENGTH = 8;
-
+// 在这个例子中，typeof connector 用于获取 connector 这个常量的类型。connector 是通过 connect 函数生成的，包含了 Redux 的状态和操作的映射。
+// 然后，将 typeof connector 的结果作为参数传递给 ConnectedProps 工具类型。ConnectedProps 会根据 connector 的类型推断出与之相对应的组件的 props 类型。
+// typeof 在泛型中使用：typeof 用于获取某个具体对象、函数或类的类型，然后将这个类型信息传递给泛型工具类型，以进行进一步的类型推断或处理。
+// ConnectedProps<typeof connector>：这里的 typeof connector 用于获取 connector 的类型，然后 ConnectedProps 使用这个类型信息来推断出 Redux 与 React 组件连接后生成的 props 类型。
+// 这种结合使用方式在 TypeScript 中非常强大，能够帮助你准确地推断和操作类型，特别是在处理复杂类型或库中的类型时。
+// todo泛型
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
 const ChangePassword: React.FC<PropsFromRedux> = ({ passwordErrors, loading, updatePassword }) => {

@@ -20,6 +20,14 @@ interface Props {
     projectOptions: Array<any>[];
     permissionsMap: any;
     projectsMap: any;
+    // todo泛型
+    // Promise<void> 表示一个返回 Promise 类型的函数，但这个 Promise 不会返回任何有意义的值
+    // 当你看到 Promise<void> 时，意味着这个函数执行完毕后，不会返回任何数据，只是单纯地标志执行过程完成或失败。
+    // async function deleteHandler(id: any): Promise<void> {
+    //     // 模拟删除操作
+    //     await someDeleteFunction(id);
+    //     // 这里没有返回任何值
+    // }
     deleteHandler: (id: any) => Promise<void>;
 }
 
